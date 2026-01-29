@@ -1,0 +1,56 @@
+@import './variables.css';
+@import './components.css';
+@import './table.css';
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: hsl(var(--color-bg-canvas));
+    color: hsl(var(--color-text-primary));
+    font-size: var(--font-size-md);
+    -webkit-font-smoothing: antialiased;
+    accent-color: hsl(var(--color-brand-primary));
+    line-height: 1.5;
+    line-height: 1.5;
+    color-scheme: light;
+}
+
+button {
+    all: unset;
+    cursor: pointer;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+input {
+    font-family: inherit;
+    color: inherit;
+}
+
+/* Custom Scrollbar - Dark Mode */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: hsl(var(--color-bg-canvas));
+}
+
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--color-border));
+    border-radius: 5px;
+    border: 2px solid hsl(var(--color-bg-canvas));
+    /* gap */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--color-text-secondary));
+}

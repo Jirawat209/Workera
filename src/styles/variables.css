@@ -1,0 +1,58 @@
+:root {
+  /* Monday.com Light Mode Inspired */
+
+  /* Primary Brand (Bright Blue) */
+  --color-brand-primary: 211 100% 50%; /* #0085FF */
+  --color-brand-hover: 211 100% 45%;
+  --color-brand-light: 211 100% 96%;
+
+  /* Backgrounds */
+  --color-bg-canvas: 0 0% 100%; /* #FFFFFF - Main Background */
+  --color-bg-surface: 220 14% 96%; /* #F5F6F8 - Sidebar/Header/Cards */
+  --color-bg-surface-hover: 220 14% 92%;
+  --color-bg-subtle: 220 14% 96%;
+
+  /* Text */
+  --color-text-primary: 230 8% 21%; /* #323338 - Main Text */
+  --color-text-secondary: 237 8% 44%; /* #676879 - Secondary */
+  --color-text-tertiary: 237 8% 60%;
+
+  /* Borders */
+  --color-border: 220 13% 91%; /* #E6E9EF */
+  --color-border-hover: 220 13% 85%;
+
+  /* Table specific */
+  --color-table-header-bg: 0 0% 100%;
+  --color-cell-border: 220 13% 91%;
+  --color-group-header-bg: 0 0% 100%;
+
+  /* Status Colors (Vibrant) */
+  --color-status-green-bg: 155 100% 39%; /* #00C875 */
+  --color-status-green-text: 0 0% 100%;
+  --color-status-red-bg: 351 77% 58%; /* #E2445C */
+  --color-status-red-text: 0 0% 100%;
+  --color-status-gray-bg: 0 0% 77%; /* #C4C4C4 */
+  --color-status-gray-text: 0 0% 100%;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+  /* Spacing */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+
+  /* Typography */
+  --font-family: 'Figtree', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+}
