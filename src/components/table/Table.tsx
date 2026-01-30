@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { useRef, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useBoardStore } from '../../store/useBoardStore';
@@ -270,7 +271,12 @@ export const Table = ({ boardId }: { boardId: string }) => {
                                         disabled={!isItem || !can('edit_items')} // Only items are draggable, and must have permission
                                     >
                                         {({ listeners }) => (
-                                            <>
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                                style={{ height: '100%' }}
+                                            >
                                                 {isGroup ? (
                                                     <div style={{ position: 'relative', height: '100%' }}>
                                                         <div style={{
@@ -535,7 +541,7 @@ export const Table = ({ boardId }: { boardId: string }) => {
                                                         dragHandleProps={listeners} // Pass listeners to Row
                                                     />
                                                 )}
-                                            </>
+                                            </motion.div>
                                         )}
                                     </SortableItemWrapper>
                                 </div>
@@ -577,7 +583,9 @@ export const Table = ({ boardId }: { boardId: string }) => {
                     justifyContent: 'flex-start'
                 }}>
                     {can('group_ungroup') && (
-                        <button
+                        <motion.button
+                            whileHover={{ scale: 1.02, backgroundColor: 'hsl(var(--color-bg-hover))' }}
+                            whileTap={{ scale: 0.98 }}
                             className="btn-secondary"
                             onClick={() => {
                                 useBoardStore.getState().addGroup("New Group");
@@ -591,11 +599,12 @@ export const Table = ({ boardId }: { boardId: string }) => {
                                 border: '1px solid hsl(var(--color-border))',
                                 backgroundColor: 'hsl(var(--color-bg-surface))',
                                 color: 'hsl(var(--color-text-primary))',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                transition: 'none' // Disable CSS transition to let motion handle it
                             }}
                         >
                             <span>+ Add New Group</span>
-                        </button>
+                        </motion.button>
                     )}
                 </div>
             </div>

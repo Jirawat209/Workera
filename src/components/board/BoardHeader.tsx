@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useBoardStore } from '../../store/useBoardStore';
 import { usePermission } from '../../hooks/usePermission';
 import { useAuth } from '../../contexts/AuthContext';
@@ -142,7 +143,9 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* Share Button */}
                 {can('create_board') && (
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => setShowShareModal(true)}
                         style={{
                             padding: '6px 12px',
@@ -164,7 +167,7 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
                     >
                         <Share2 size={16} />
                         <span>Share</span>
-                    </button>
+                    </motion.button>
                 )}
 
                 {/* Notification Bell */}
@@ -172,7 +175,9 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
 
                 {/* Profile Dropdown */}
                 <div style={{ position: 'relative' }} ref={profileMenuRef}>
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => setShowProfileMenu(!showProfileMenu)}
                         style={{
                             width: '40px',
@@ -188,11 +193,9 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'transform 0.2s',
+                            // transition: 'transform 0.2s', // Conflict with motion
                             padding: 0
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         title={user?.email || 'Profile'}
                     >
                         {userAvatar ? (
@@ -208,7 +211,7 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
                         ) : (
                             userInitials
                         )}
-                    </button>
+                    </motion.button>
 
                     {/* Profile Dropdown Menu */}
                     {showProfileMenu && (
