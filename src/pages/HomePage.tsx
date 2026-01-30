@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 import { useAuth } from '../contexts/AuthContext';
-import { Clock, Layout, Star, Bell, EyeOff } from 'lucide-react';
+import { Clock, Layout, Star, Bell, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export const HomePage = () => {
@@ -120,52 +120,143 @@ const InboxFeed = () => {
     const { loadUserData } = useBoardStore();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [processingId, setProcessingId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (user) loadNotifications();
-    }, [user]);
+        if (user?.id) loadNotifications();
+    }, [user?.id]); // Fix dependency to avoid unnecessary reloads
 
     const loadNotifications = async () => {
         setIsLoading(true);
         const { data } = await supabase
             .from('notifications')
             .select('*')
-            .eq('is_read', false)
+            // Show latest 10, regardless of read status (or maybe filter by not dismissed? 
+            // but for now let's match behavior: show recent)
+            // Actually, NotificationBell shows all recent. 
+            // Let's show unread + recent read ones if we want, but user said "Update Feed".
+            // Let's keep showing all latest 5 for context, sorted by date.
             .order('created_at', { ascending: false })
-            .limit(5); // Show latest 5 unread
+            .limit(5);
         setNotifications(data || []);
         setIsLoading(false);
     };
 
-    const handleDeclineInvite = async (notification: any) => {
-        // Just delete the notification for now
-        await supabase.from('notifications').delete().eq('id', notification.id);
-        loadNotifications();
+    const dismissNotification = async (notificationId: string) => {
+        setProcessingId(notificationId);
+
+        // Optimistically remove from UI immediately
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .delete()
+                .eq('id', notificationId);
+
+            if (error) {
+                console.error('Error dismissing notification:', error);
+                await loadNotifications(); // Restore on error
+            }
+        } catch (err) {
+            console.error(err);
+            await loadNotifications();
+        } finally {
+            setProcessingId(null);
+        }
     };
 
     const handleMarkAsRead = async (notification: any) => {
-        await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
-        loadNotifications();
+        // Instant visual feedback if we were hiding it, but here maybe we just mark read
+        // For now let's treat "EyeOff" as dismiss/hide from feed
+        dismissNotification(notification.id);
     };
 
     const handleAcceptInvite = async (notification: any) => {
-        // ... (reuse logic or import if possible, but for now duplicate strictly for speed/isolation as this is a quick fix)
-        // Actually, let's keep it simple. If we click accept/decline here, we should probably refactor useBoardStore to handle it
-        // BUT for now, I'll just skip the action buttons in the feed or implement a simple version.
-        // User asked to "Show data from Notification".
-        // Let's just show the list first.
-        if (notification.type === 'workspace_invite') {
-            const { workspace_id, role } = notification.data;
-            await supabase.from('workspace_members').insert({ workspace_id, user_id: user?.id, role });
-        } else if (notification.type === 'board_invite') {
-            const { board_id, role } = notification.data;
-            await supabase.from('board_members').insert({ board_id, user_id: user?.id, role });
+        setProcessingId(notification.id);
+
+        // Optimistically update UI
+        setNotifications(prev => prev.map(n =>
+            n.id === notification.id
+                ? { ...n, status: 'accepted', is_read: true }
+                : n
+        ));
+
+        try {
+            if (notification.type === 'workspace_invite') {
+                const { workspace_id, role } = notification.data;
+                const { data: existing } = await supabase
+                    .from('workspace_members')
+                    .select('id')
+                    .eq('workspace_id', workspace_id)
+                    .eq('user_id', user?.id)
+                    .single();
+
+                if (!existing) {
+                    await supabase.from('workspace_members').insert({ workspace_id, user_id: user?.id, role });
+                }
+            } else if (notification.type === 'board_invite') {
+                const { board_id, role } = notification.data;
+                const { data: existing } = await supabase
+                    .from('board_members')
+                    .select('id')
+                    .eq('board_id', board_id)
+                    .eq('user_id', user?.id)
+                    .single();
+
+                if (!existing) {
+                    await supabase.from('board_members').insert({ board_id, user_id: user?.id, role });
+                }
+            }
+
+            // Update status in DB
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true, status: 'accepted' })
+                .eq('id', notification.id);
+
+            if (error) {
+                // Revert on error
+                await loadNotifications();
+                return;
+            }
+
+            // Reload permissions silently
+            await loadUserData(true);
+        } catch (error) {
+            console.error('Error accepting:', error);
+            await loadNotifications();
+        } finally {
+            setProcessingId(null);
         }
-        await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
-        await loadUserData(true);
-        loadNotifications();
     };
 
+    const handleDeclineInvite = async (notification: any) => {
+        setProcessingId(notification.id);
+
+        // Optimistically update UI
+        setNotifications(prev => prev.map(n =>
+            n.id === notification.id
+                ? { ...n, status: 'declined', is_read: true }
+                : n
+        ));
+
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true, status: 'declined' })
+                .eq('id', notification.id);
+
+            if (error) {
+                await loadNotifications();
+            }
+        } catch (error) {
+            console.error('Error declining:', error);
+            await loadNotifications();
+        } finally {
+            setProcessingId(null);
+        }
+    };
 
     const formatTime = (timestamp: string) => {
         const date = new Date(timestamp);
@@ -216,52 +307,103 @@ const InboxFeed = () => {
                                     <Bell size={20} color="#676879" />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', paddingRight: '20px' }}>
                                         <span style={{ fontWeight: 600 }}>{n.title}</span>
-                                        <span style={{ fontSize: '12px', color: '#676879' }}>{formatTime(n.created_at)}</span>
                                     </div>
                                     <p style={{ margin: 0, color: '#323338', fontSize: '14px' }}>
                                         {n.message}
                                     </p>
-                                    {(n.type === 'workspace_invite' || n.type === 'board_invite') && !n.is_read && (
-                                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                            <button
-                                                onClick={() => handleAcceptInvite(n)}
-                                                style={{
-                                                    backgroundColor: '#0073ea', color: 'white', border: 'none',
-                                                    padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, fontSize: '13px'
-                                                }}>
-                                                Accept
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeclineInvite(n)}
-                                                style={{
-                                                    backgroundColor: 'transparent', color: '#676879', border: '1px solid #c3c6d4',
-                                                    padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, fontSize: '13px'
-                                                }}>
-                                                Decline
-                                            </button>
+
+                                    {/* Status Message for Accepted/Declined */}
+                                    {n.status && n.status !== 'pending' && (
+                                        <div style={{
+                                            padding: '12px',
+                                            borderRadius: '6px',
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            backgroundColor: n.status === 'accepted' ? '#d1fae5' : '#fee2e2',
+                                            color: n.status === 'accepted' ? '#065f46' : '#991b1b',
+                                            marginTop: '12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}>
+                                            <span style={{ fontSize: '16px' }}>
+                                                {n.status === 'accepted' ? '✓' : '✕'}
+                                            </span>
+                                            <span>
+                                                {n.status === 'accepted'
+                                                    ? `You've accepted this invitation`
+                                                    : `You've declined this invitation`}
+                                            </span>
                                         </div>
                                     )}
+
+                                    {/* Action Buttons */}
+                                    {(n.type === 'workspace_invite' || n.type === 'board_invite') &&
+                                        (!n.status || n.status === 'pending') && (
+                                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                                <button
+                                                    onClick={() => handleAcceptInvite(n)}
+                                                    disabled={processingId === n.id}
+                                                    style={{
+                                                        backgroundColor: processingId === n.id ? '#6ba3f5' : '#0073ea',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        padding: '6px 16px',
+                                                        borderRadius: '4px',
+                                                        cursor: processingId === n.id ? 'not-allowed' : 'pointer',
+                                                        fontWeight: 500,
+                                                        fontSize: '13px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        transition: 'all 0.2s'
+                                                    }}>
+                                                    {processingId === n.id ? 'Accepting...' : 'Accept'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeclineInvite(n)}
+                                                    disabled={processingId === n.id}
+                                                    style={{
+                                                        backgroundColor: 'transparent',
+                                                        color: '#676879',
+                                                        border: '1px solid #c3c6d4',
+                                                        padding: '6px 16px',
+                                                        borderRadius: '4px',
+                                                        cursor: processingId === n.id ? 'not-allowed' : 'pointer',
+                                                        fontWeight: 500,
+                                                        fontSize: '13px',
+                                                        transition: 'all 0.2s'
+                                                    }}>
+                                                    {processingId === n.id ? 'Declining...' : 'Decline'}
+                                                </button>
+                                            </div>
+                                        )}
+
+                                    <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                                        <span style={{ fontSize: '12px', color: '#9ba0b0' }}>{formatTime(n.created_at)}</span>
+                                    </div>
                                 </div>
-                                {/* Hide / Mark as Read Button */}
+                                {/* Hide / Mark as Read Button (Dismiss) */}
                                 <button
                                     onClick={() => handleMarkAsRead(n)}
-                                    title="Mark as read / Hide"
+                                    title="Dismiss"
                                     style={{
                                         position: 'absolute',
                                         top: 0,
-                                        right: -10, // Adjust position
+                                        right: -10,
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
                                         padding: '4px',
-                                        color: '#c3c6d4'
+                                        color: '#c3c6d4',
+                                        transition: 'color 0.2s'
                                     }}
                                     onMouseEnter={(e) => e.currentTarget.style.color = '#323338'}
                                     onMouseLeave={(e) => e.currentTarget.style.color = '#c3c6d4'}
                                 >
-                                    <EyeOff size={16} />
+                                    <X size={16} />
                                 </button>
                             </div>
                         ))}

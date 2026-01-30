@@ -4,6 +4,8 @@ import { useBoardStore } from '../../store/useBoardStore';
 import { InviteMemberForm } from './InviteMemberForm';
 import { MembersList } from './MembersList';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../hooks/useToast';
+import { ToastContainer } from '../ui/Toast';
 
 interface ShareBoardModalProps {
     boardId: string;
@@ -21,6 +23,7 @@ export const ShareBoardModal = ({ boardId, onClose }: ShareBoardModalProps) => {
         removeMember
     } = useBoardStore();
 
+    const { toasts, showToast, removeToast } = useToast();
     const [members, setMembers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -45,7 +48,7 @@ export const ShareBoardModal = ({ boardId, onClose }: ShareBoardModalProps) => {
 
     const handleInvite = async (email: string, role: string) => {
         await inviteToBoard(boardId, email, role);
-        alert('Invitation sent!');
+        showToast('Invitation sent successfully!', 'success');
     };
 
     const handleRoleChange = async (memberId: string, newRole: string) => {
@@ -162,6 +165,9 @@ export const ShareBoardModal = ({ boardId, onClose }: ShareBoardModalProps) => {
                     )}
                 </div>
             </div>
+
+            {/* Toast Notifications */}
+            <ToastContainer toasts={toasts} onRemove={removeToast} />
         </>
     );
 };

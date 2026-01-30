@@ -56,3 +56,13 @@ button:focus-visible {
   width: 100%;
   color: #323338;
 }
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
