@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { arrayMove } from '@dnd-kit/sortable';
 import type { Board, Item, Workspace, ItemValue, ColumnType } from '../types';
 
 interface BoardState {
@@ -439,7 +440,21 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         await supabase.from('boards').update({ title: newTitle }).eq('id', boardId);
     },
     duplicateBoard: async (_boardId) => { /* TODO */ },
-    moveBoard: (_activeId, _overId) => { /* TODO Local Reorder */ },
+    moveBoard: async (activeId, overId) => {
+        const { boards } = get();
+        const activeIndex = boards.findIndex(b => b.id === activeId);
+        const overIndex = boards.findIndex(b => b.id === overId);
+
+        if (activeIndex === -1 || overIndex === -1) return;
+
+        const newBoards = arrayMove(boards, activeIndex, overIndex);
+
+        set({ boards: newBoards });
+
+        // Persist
+        const boardIds = newBoards.map(b => b.id);
+        await supabase.rpc('reorder_boards', { _board_ids: boardIds });
+    },
     duplicateBoardToWorkspace: () => { },
     moveBoardToWorkspace: () => { },
 
@@ -525,7 +540,27 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         const { activeBoardId } = get();
         set(state => ({ boards: state.boards.map(b => b.id === activeBoardId ? { ...b, columns: b.columns.map(c => c.id === columnId ? { ...c, width } : c) } : b) }));
     },
-    moveColumn: (_fromIndex, _toIndex) => { /* TODO */ },
+    moveColumn: async (fromIndex, toIndex) => {
+        const { activeBoardId, boards } = get();
+        if (!activeBoardId) return;
+
+        const board = boards.find(b => b.id === activeBoardId);
+        if (!board) return;
+
+        const newColumns = arrayMove(board.columns, fromIndex, toIndex);
+
+        // Optimistic Update
+        set(state => ({
+            boards: state.boards.map(b => b.id === activeBoardId ? { ...b, columns: newColumns } : b)
+        }));
+
+        // Persist Orders via RPC
+        const columnIds = newColumns.map(c => c.id);
+        await supabase.rpc('reorder_columns', {
+            _board_id: activeBoardId,
+            _column_ids: columnIds
+        });
+    },
     duplicateColumn: (_columnId) => { /* TODO */ },
     setColumnAggregation: (columnId, type) => {
         const { activeBoardId } = get();
@@ -682,7 +717,102 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         }));
         await supabase.from('items').delete().eq('id', itemId);
     },
-    moveItem: (_activeId, _overId) => { /* TODO Implement drag and drop logic and sync */ },
+    moveItem: async (activeId, overId) => {
+        const { activeBoardId, boards } = get();
+        if (!activeBoardId || activeId === overId) return;
+
+        const board = boards.find(b => b.id === activeBoardId);
+        if (!board) return;
+
+        const activeItem = board.items.find(i => i.id === activeId);
+        if (!activeItem) return;
+
+        // Check if dropping onto a Group ID
+        const overGroup = board.groups.find(g => g.id === overId);
+
+        let newItems = [...board.items];
+        let newGroupId = activeItem.groupId;
+
+        if (overGroup) {
+            // Case 1: Dropped onto a Group Header
+            newGroupId = overGroup.id;
+
+            // Remove active item from current position
+            const activeIndex = newItems.findIndex(i => i.id === activeId);
+            if (activeIndex !== -1) {
+                newItems.splice(activeIndex, 1);
+            }
+
+            // Find insertion point: The first item of the target group
+            // We want to insert at the TOP of the target group
+            const firstItemInGroupIndex = newItems.findIndex(i => i.groupId === newGroupId);
+
+            const movedItem = { ...activeItem, groupId: newGroupId };
+
+            if (firstItemInGroupIndex !== -1) {
+                newItems.splice(firstItemInGroupIndex, 0, movedItem);
+            } else {
+                // Group is empty, append to end of list
+                newItems.push(movedItem);
+            }
+
+        } else {
+            // Case 2: Dropped onto another Item
+            const overItem = board.items.find(i => i.id === overId);
+            if (!overItem) return;
+
+            const activeIndex = board.items.findIndex(i => i.id === activeId);
+            const overIndex = board.items.findIndex(i => i.id === overId);
+
+            if (activeItem.groupId === overItem.groupId) {
+                // Same Group: Just reorder
+                newItems = arrayMove(newItems, activeIndex, overIndex);
+            } else {
+                // Different Group: Move and reorder
+                newGroupId = overItem.groupId;
+
+                // Remove the active item first
+                newItems.splice(activeIndex, 1);
+
+                // Recalculate the over index after removal
+                const adjustedOverIndex = activeIndex < overIndex ? overIndex - 1 : overIndex;
+
+                // Insert the item with new group ID at the adjusted position
+                const movedItem = { ...activeItem, groupId: newGroupId };
+                newItems.splice(adjustedOverIndex, 0, movedItem);
+            }
+        }
+
+        // Apply Optimistic Update
+        set(state => ({
+            boards: state.boards.map(b => {
+                if (b.id !== activeBoardId) return b;
+
+                // Re-index ALL items (global order maintenance)
+                const updatedItems = newItems.map((item, index) => ({ ...item, order: index }));
+
+                return {
+                    ...b,
+                    items: updatedItems,
+                    groups: b.groups.map(g => ({
+                        ...g,
+                        items: updatedItems.filter(i => i.groupId === g.id)
+                    }))
+                };
+            })
+        }));
+
+        // Persist
+        if (activeItem.groupId !== newGroupId) {
+            await supabase.from('items').update({ group_id: newGroupId }).eq('id', activeId);
+        }
+
+        const itemIds = newItems.map(i => i.id);
+        await supabase.rpc('reorder_items', {
+            _board_id: activeBoardId,
+            _item_ids: itemIds
+        });
+    },
 
     // --- Selection & Batch ---
     toggleItemSelection: (itemId, selected) => {
