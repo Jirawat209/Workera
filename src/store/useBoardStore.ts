@@ -173,11 +173,13 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
                 // 1. Create Workspace
                 const newWorkspace = { id: workspaceId, title: 'My Workspace', owner_id: user.id, order: 0 };
-                await supabase.from('workspaces').insert(newWorkspace);
+                const { error: wsError } = await supabase.from('workspaces').insert(newWorkspace);
+                if (wsError) throw new Error(`Failed to create workspace: ${wsError.message}`);
 
                 // 2. Create Board
                 const newBoard = { id: boardId, workspace_id: workspaceId, title: 'Welcome to Workera', order: 0 };
-                await supabase.from('boards').insert(newBoard);
+                const { error: boardError } = await supabase.from('boards').insert(newBoard);
+                if (boardError) throw new Error(`Failed to create board: ${boardError.message}`);
 
                 // 3. Create Default Groups
                 const group1Id = uuidv4();
@@ -186,7 +188,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                     { id: group1Id, board_id: boardId, title: 'Getting Started', color: '#579bfc', order: 0 },
                     { id: group2Id, board_id: boardId, title: 'Ideas', color: '#784bd1', order: 1 }
                 ];
-                await supabase.from('groups').insert(groupsMsg);
+                const { error: groupsError } = await supabase.from('groups').insert(groupsMsg);
+                if (groupsError) console.error('Failed to create groups:', groupsError);
 
                 // 4. Create ALL Column Types
                 const colStatusId = uuidv4();
@@ -211,7 +214,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                     { id: uuidv4(), board_id: boardId, title: 'Files', type: 'link', order: 6, width: 140, options: [] },
                     { id: uuidv4(), board_id: boardId, title: 'Checked', type: 'checkbox', order: 7, width: 100, options: [] },
                 ];
-                await supabase.from('columns').insert(columnsMsg);
+                const { error: colsError } = await supabase.from('columns').insert(columnsMsg);
+                if (colsError) console.error('Failed to create columns:', colsError);
 
                 // 5. Create Sample Items
                 const item1Id = uuidv4();
@@ -226,7 +230,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                         values: { [colStatusId]: 'To Do' }
                     }
                 ];
-                await supabase.from('items').insert(itemsMsg);
+                const { error: itemsError } = await supabase.from('items').insert(itemsMsg);
+                if (itemsError) console.error('Failed to create items:', itemsError);
 
                 // Update Local State immediately
                 set({
