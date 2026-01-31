@@ -1,32 +1,50 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut } from 'lucide-react';
-import { NotificationBell } from '../notifications/NotificationBell';
+import { LogOut, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { CloudStatus } from './CloudStatus';
+import { useBoardStore } from '../../store/useBoardStore';
+import { NotificationItem } from '../notifications/NotificationItem';
 
 export const TopBar = () => {
     const { user, signOut } = useAuth();
-    // const { activeWorkspaceId } = useBoardStore(); 
-    const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const profileMenuRef = useRef<HTMLDivElement>(null);
+    const unreadCount = useBoardStore(state => state.notifications?.filter(n => !n.is_read).length || 0);
+    const loadNotifications = useBoardStore(state => state.loadNotifications);
+    const navigateTo = useBoardStore(state => state.navigateTo);
 
-    // Close dropdown when clicking outside
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
+    const notificationMenuRef = useRef<HTMLDivElement>(null);
+
+    const notifications = useBoardStore(state => state.notifications || []);
+    const recentNotifications = notifications.slice(0, 5);
+
+    useEffect(() => {
+        if (user?.id) {
+            loadNotifications();
+        }
+    }, [user?.id, loadNotifications]);
+
+    // Close dropdowns when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
                 setShowProfileMenu(false);
             }
+            if (notificationMenuRef.current && !notificationMenuRef.current.contains(event.target as Node) && !(event.target as Element).closest('.notification-bell-btn')) {
+                setShowNotifications(false);
+            }
         };
 
-        if (showProfileMenu) {
+        if (showProfileMenu || showNotifications) {
             document.addEventListener('mousedown', handleClickOutside);
         }
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showProfileMenu]);
+    }, [showProfileMenu, showNotifications]);
 
     const handleSignOut = async () => {
         await signOut();
@@ -57,8 +75,93 @@ export const TopBar = () => {
             <div style={{ width: '1px', height: '20px', backgroundColor: 'hsl(var(--color-border))', margin: '0 8px' }} />
 
             {/* Notification Bell */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-                <NotificationBell />
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }} ref={notificationMenuRef}>
+                <button
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="notification-bell-btn relative flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-[hsl(var(--color-bg-hover))] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    style={{
+                        backgroundColor: showNotifications ? 'hsl(var(--color-bg-hover))' : 'transparent',
+                        color: 'hsl(var(--color-text-primary))',
+                        border: 'none',
+                        cursor: 'pointer'
+                    }}
+                    title={unreadCount > 0 ? `${unreadCount} unread notifications` : "No new notifications"}
+                >
+                    <Bell size={20} />
+                    {unreadCount > 0 && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#ff3b30',
+                            border: '2px solid hsl(var(--color-bg-surface))'
+                        }} />
+                    )}
+                </button>
+
+                {/* Notification Popover */}
+                {showNotifications && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '44px',
+                        right: '-80px', // Shift slightly right to align better with edge or center
+                        width: '360px',
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        border: '1px solid #e5e7eb',
+                        zIndex: 1000,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, color: '#111827' }}>Notifications</span>
+                            {unreadCount > 0 && <span style={{ fontSize: '12px', color: '#6b7280' }}>{unreadCount} unread</span>}
+                        </div>
+
+                        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                            {recentNotifications.length > 0 ? (
+                                recentNotifications.map(notification => (
+                                    <div key={notification.id} style={{ borderBottom: '1px solid #f9fafb' }}>
+                                        <NotificationItem notification={notification} onClose={() => setShowNotifications(false)} />
+                                    </div>
+                                ))
+                            ) : (
+                                <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
+                                    No notifications
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ padding: '8px', borderTop: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
+                            <button
+                                onClick={() => {
+                                    setShowNotifications(false);
+                                    navigateTo('notifications');
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    color: '#2563eb',
+                                    fontSize: '13px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    borderRadius: '4px'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                                See all notifications
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Profile Dropdown */}

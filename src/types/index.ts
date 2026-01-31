@@ -83,3 +83,17 @@ export interface Board {
     sort?: SortState | null;
     filters?: FilterState[]; // Support multiple column filters
 }
+
+export interface Notification {
+    id: string;
+    type: string; // 'workspace_invite' | 'board_invite' | 'assignment' | 'mention'
+    title: string;
+    message: string | null;
+    data: any;
+    is_read: boolean;
+    status?: string; // 'pending' | 'accepted' | 'declined'
+    created_at: string;
+    actor_id?: string;
+    user_id: string;
+    content?: string;
+}

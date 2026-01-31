@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { arrayMove } from '@dnd-kit/sortable';
-import type { Board, Item, Workspace, ItemValue, ColumnType } from '../types';
+import type { Board, Item, Workspace, ItemValue, ColumnType, Notification } from '../types';
 
 interface BoardState {
     boards: Board[];
@@ -116,6 +116,19 @@ interface BoardState {
 
     // Realtime
     realtimeSubscription: any; // Using any for proper supabase channel type without heavy imports for now
+
+    activePage: 'home' | 'board' | 'notifications';
+    navigateTo: (page: 'home' | 'board' | 'notifications') => void;
+
+    // Notifications
+    notifications: Notification[];
+    // isNotificationOpen removed in favor of page navigation
+    loadNotifications: () => Promise<void>;
+    markNotificationAsRead: (id: string) => Promise<void>;
+    markAllNotificationsAsRead: () => Promise<void>;
+    dismissNotification: (id: string) => Promise<void>;
+    handleAcceptInvite: (notification: Notification) => Promise<void>;
+    handleDeclineInvite: (notification: Notification) => Promise<void>;
 }
 
 
@@ -137,6 +150,18 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     isSyncing: false,
     error: null,
     realtimeSubscription: null,
+    activePage: 'home',
+    navigateTo: (page) => {
+        set({ activePage: page });
+        if (page === 'notifications') {
+            window.history.pushState(null, '', '/notifications');
+        } else if (page === 'home') {
+            window.history.pushState(null, '', '/');
+        }
+    },
+
+    notifications: [],
+    // isNotificationOpen removed
 
     loadUserData: async (isSilent = false) => {
         if (!isSilent) {
@@ -197,20 +222,21 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
             if (!workspaces || !boards) throw new Error('Failed to load core data');
 
+            // 0. ENSURE PROFILE EXISTS (Running always to ensure mention/search availability)
+            // Ideally this is handled by a database trigger, but for robustness in this dev env:
+            const { error: profileError } = await supabase.from('profiles').upsert({
+                id: user.id,
+                email: user.email,
+                full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+                avatar_url: user.user_metadata?.avatar_url
+            }, { onConflict: 'id' });
+
+            if (profileError) {
+                console.error("Failed to ensure profile:", profileError);
+            }
+
             // Handle case where user has no workspace (first login)
             if (workspaces.length === 0) {
-                // 0. ENSURE PROFILE EXISTS (Fix for users created before SQL trigger)
-                const { error: profileError } = await supabase.from('profiles').upsert({
-                    id: user.id,
-                    email: user.email,
-                    full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-                    avatar_url: user.user_metadata?.avatar_url
-                }, { onConflict: 'id' });
-
-                if (profileError) {
-                    console.error("Failed to create profile:", profileError);
-                }
-
                 const workspaceId = uuidv4();
                 const boardId = uuidv4();
 
@@ -390,9 +416,11 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     },
 
     setActiveBoard: async (id) => {
-        set({ activeBoardId: id });
+        set({ activeBoardId: id, activePage: 'board' }); // Switch page
         localStorage.setItem('lastActiveBoardId', id || '');
+
         if (id) {
+            window.history.pushState(null, '', `/board/${id}`); // Sync URL
             set({ isLoadingMembers: true });
             // Fetch members immediately for permission check
             const members = await get().getBoardMembers(id);
@@ -975,8 +1003,118 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     clearColumnFilter: (columnId: string) => set(state => ({ boards: state.boards.map(b => b.id === state.activeBoardId ? { ...b, filters: (b.filters || []).filter(f => f.columnId !== columnId) } : b) })),
 
     // --- Task Updates ---
-    addUpdate: (_itemId, _content, _author) => { /* TODO Sync to DB updates column */ },
-    deleteUpdate: (_itemId, _updateId) => { },
+    addUpdate: async (itemId, content, author) => {
+        const { boards, activeBoardId, activeBoardMembers, createNotification } = get();
+        const newUpdate = {
+            id: uuidv4(),
+            content,
+            author: author.name,
+            createdAt: new Date().toISOString()
+        };
+
+        // 1. Optimistic Update
+        set(state => ({
+            boards: state.boards.map(b => {
+                if (b.id !== activeBoardId) return b;
+                return {
+                    ...b,
+                    items: b.items.map(i => {
+                        if (i.id !== itemId) return i;
+                        return { ...i, updates: [newUpdate, ...(i.updates || [])] };
+                    })
+                };
+            })
+        }));
+
+        // 2. Persist to DB
+        // We need to fetch current updates first to append safely (or rely on the optimistically updated state if we trust it, 
+        // but fetching is safer for concurrency if we had it. For now, appending to what we know is fine for MVP)
+        const board = get().boards.find(b => b.id === activeBoardId);
+        const item = board?.items.find(i => i.id === itemId);
+        let updatedList = item?.updates;
+        if (!Array.isArray(updatedList)) {
+            updatedList = [];
+        }
+
+        const { error } = await supabase
+            .from('items')
+            .update({ updates: updatedList })
+            .eq('id', itemId);
+
+        if (error) {
+            console.error('Failed to save update:', error);
+            // Revert? For now just log.
+        } else {
+            console.log('Update saved successfully to DB');
+        }
+
+        // 3. Mention Logic
+        // Simple regex to find @String. Note: This assumes names don't have spaces or logic handles it. 
+        // For "Full Name" mentions, we might need a more robust parser or specific format like @[Full Name]
+        // Let's try to match typical name patterns.
+        const mentionRegex = /@([a-zA-Z0-9_ ]+)/g;
+        const matches = content.match(mentionRegex);
+
+        if (matches && activeBoardMembers.length > 0) {
+            const mentionedNames = new Set(matches.map(m => m.substring(1).trim())); // remove @
+
+            mentionedNames.forEach(async (name) => {
+                // Find user by name (fuzzy or exact)
+                const targetMember = activeBoardMembers.find(m => {
+                    const profileName = m.profiles?.full_name || m.profiles?.email || '';
+                    return profileName.toLowerCase() === name.toLowerCase() || profileName.toLowerCase().includes(name.toLowerCase());
+                });
+
+                if (targetMember && targetMember.user_id !== author.id) {
+                    await createNotification(
+                        targetMember.user_id,
+                        'mention',
+                        `${author.name} mentioned you in an update: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+                        itemId
+                    );
+                }
+            });
+        }
+    },
+    deleteUpdate: async (itemId, updateId) => {
+        const { activeBoardId } = get();
+
+        // 1. Optimistic Update
+        set(state => ({
+            boards: state.boards.map(b => {
+                if (b.id !== activeBoardId) return b;
+                return {
+                    ...b,
+                    items: b.items.map(i => {
+                        if (i.id !== itemId) return i;
+                        // Filter out the update, ensuring we handle the mixed-type legacy data gracefully
+                        const currentUpdates = Array.isArray(i.updates) ? i.updates : [];
+                        const newUpdates = currentUpdates.filter(u => typeof u === 'object' && u?.id && u.id !== updateId);
+                        return { ...i, updates: newUpdates };
+                    })
+                };
+            })
+        }));
+
+        // 2. Persist to DB
+        const board = get().boards.find(b => b.id === activeBoardId);
+        const item = board?.items.find(i => i.id === itemId);
+
+        // Use the ALREADY filtered list from the optimistic update state (or re-derive it safely)
+        // Re-deriving is safer to avoid race conditions with state application
+        const currentUpdates = Array.isArray(item?.updates) ? item.updates : [];
+        const validUpdates = currentUpdates.filter(u => typeof u === 'object' && u?.id); // Ensure we only save back valid objects, cleaning up garbage
+
+        const { error } = await supabase
+            .from('items')
+            .update({ updates: validUpdates })
+            .eq('id', itemId);
+
+        if (error) {
+            console.error('Failed to delete update:', error);
+            // Revert logic could go here
+        }
+    },
 
     subscribeToRealtime: () => {
         const { activeWorkspaceId } = get();
@@ -1259,6 +1397,151 @@ export const useBoardStore = create<BoardState>((set, get) => ({
             `${currentUser?.user_metadata?.full_name || 'Someone'} assigned you to an item in ${boardTitle}`,
             itemId
         );
+    },
+
+    // --- Notifications Implementation ---
+    loadNotifications: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            console.error('Error loading notifications:', error);
+            return;
+        }
+
+        set({ notifications: data || [] });
+    },
+
+    markNotificationAsRead: async (id: string) => {
+        // Optimistic Update
+        set(state => ({
+            notifications: state.notifications.map(n =>
+                n.id === id ? { ...n, is_read: true } : n
+            )
+        }));
+
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error marking notification as read:', error);
+            // Revert on error? For read status maybe not critical.
+            get().loadNotifications();
+        }
+    },
+
+    markAllNotificationsAsRead: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Optimistic
+        set(state => ({
+            notifications: state.notifications.map(n => ({ ...n, is_read: true }))
+        }));
+
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+
+        if (error) {
+            console.error('Error marking all as read:', error);
+            get().loadNotifications();
+        }
+    },
+
+    dismissNotification: async (id: string) => {
+        // Optimistic
+        set(state => ({
+            notifications: state.notifications.filter(n => n.id !== id)
+        }));
+
+        const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error dismissing notification:', error);
+            get().loadNotifications();
+        }
+    },
+
+    handleAcceptInvite: async (notification: Notification) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        try {
+            // Optimistic
+            set(state => ({
+                notifications: state.notifications.map(n =>
+                    n.id === notification.id ? { ...n, status: 'accepted', is_read: true } : n
+                )
+            }));
+
+            if (notification.type === 'workspace_invite') {
+                const { workspace_id, role } = notification.data;
+                // Add member logic (backend handles idempotent insertion usually, but safe to check)
+                const { error } = await supabase
+                    .from('workspace_members')
+                    .upsert({ workspace_id, user_id: user.id, role }, { onConflict: 'workspace_id,user_id' }); // Upsert is safer
+
+                if (error) throw error;
+
+            } else if (notification.type === 'board_invite') {
+                const { board_id, role } = notification.data;
+                const { error } = await supabase
+                    .from('board_members')
+                    .upsert({ board_id, user_id: user.id, role }, { onConflict: 'board_id,user_id' });
+
+                if (error) throw error;
+            }
+
+            // Update Notification Status
+            await supabase
+                .from('notifications')
+                .update({ is_read: true, status: 'accepted' })
+                .eq('id', notification.id);
+
+            // Reload Data to see new workspace/board
+            get().loadUserData(true);
+
+        } catch (error) {
+            console.error('Error accepting invite:', error);
+            alert('Failed to accept invite');
+            get().loadNotifications(); // Revert
+        }
+    },
+
+    handleDeclineInvite: async (notification: Notification) => {
+        try {
+            set(state => ({
+                notifications: state.notifications.map(n =>
+                    n.id === notification.id ? { ...n, status: 'declined', is_read: true } : n
+                )
+            }));
+
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true, status: 'declined' })
+                .eq('id', notification.id);
+
+            if (error) throw error;
+
+        } catch (error) {
+            console.error('Error declining invite:', error);
+            get().loadNotifications();
+        }
     }
 }));
 

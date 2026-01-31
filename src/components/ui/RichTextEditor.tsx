@@ -1,10 +1,10 @@
-
 import { useEffect, useRef, useState } from 'react';
 import {
     Bold, Italic, Underline, Strikethrough,
     List, ListOrdered, Link,
     Minus
 } from 'lucide-react';
+import { useBoardStore } from '../../store/useBoardStore';
 
 interface RichTextEditorProps {
     value: string; // HTML string
@@ -14,6 +14,17 @@ interface RichTextEditorProps {
 export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
+    const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+    const [mentionPosition, setMentionPosition] = useState<{ top: number, left: number } | null>(null);
+    const [mentionRange, setMentionRange] = useState<Range | null>(null);
+    const { activeBoardMembers } = useBoardStore();
+
+    const filteredMembers = mentionQuery !== null
+        ? activeBoardMembers.filter(m => {
+            const name = m.profiles?.full_name || m.profiles?.email || 'Unknown';
+            return name.toLowerCase().includes(mentionQuery.toLowerCase());
+        })
+        : [];
 
     // Sync external value to editor ONLY if different and not focused (to prevent cursor jumping)
     useEffect(() => {
@@ -35,6 +46,99 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
     const handleChange = () => {
         if (editorRef.current) {
             onChange(editorRef.current.innerHTML);
+            checkMention();
+        }
+    };
+
+    const checkMention = () => {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+        const text = range.startContainer.textContent || '';
+        const cursorOffset = range.startOffset;
+
+        // Find last @ before cursor
+        const lastAt = text.lastIndexOf('@', cursorOffset - 1);
+
+        if (lastAt !== -1) {
+            // Check if there are spaces between @ and cursor (allow spaces in names, but maybe limit to a reasonable amount to avoid false positives on "email @ domain")
+            // For simplicity: text between @ and cursor
+            const query = text.substring(lastAt + 1, cursorOffset);
+
+            // Simple validation: Ensure @ is preceded by space or is start of line
+            const charBefore = lastAt > 0 ? text[lastAt - 1] : ' ';
+            if (charBefore === ' ' || charBefore === '\n' || charBefore === '\u00A0') { // 00A0 is nbsp
+                setMentionQuery(query);
+                setMentionRange(range.cloneRange()); // Save the range!
+
+                // Get coordinates
+                const rect = range.getBoundingClientRect();
+                setMentionPosition({
+                    top: rect.bottom, // Relative to viewport, we might need adjustments if parent is scrolled
+                    left: rect.left
+                });
+                return;
+            }
+        }
+
+        setMentionQuery(null);
+        setMentionPosition(null);
+        setMentionRange(null);
+    };
+
+    const insertMention = (name: string) => {
+        if (!mentionRange) return; // Use the saved range
+
+        const range = mentionRange;
+        const node = range.startContainer;
+        const text = node.textContent || '';
+        const cursorOffset = range.startOffset;
+
+        // We need to find the @ relative to the SAVED range
+        // Since we cloned the range when the cursor was AT the end of the query,
+        // range.startOffset should be the end of "@query"
+
+        const lastAt = text.lastIndexOf('@', cursorOffset - 1);
+
+        if (lastAt !== -1) {
+            // Remove the @query
+            range.setStart(node, lastAt);
+            range.setEnd(node, cursorOffset);
+            range.deleteContents();
+
+            // Insert the name chip
+            const span = document.createElement('span');
+            span.textContent = `@${name}`;
+            span.style.color = '#1d4ed8'; // darker blue
+            span.style.backgroundColor = '#dbeafe'; // light blue bg
+            span.style.padding = '2px 6px';
+            span.style.borderRadius = '12px';
+            span.style.fontWeight = '500';
+            span.style.display = 'inline-block';
+            span.contentEditable = 'false';
+
+            range.insertNode(span);
+
+            // Add space after
+            const space = document.createTextNode('\u00A0');
+            range.setStartAfter(span);
+            range.insertNode(space);
+
+            // Move cursor to end
+            range.setStartAfter(space);
+            range.collapse(true);
+
+            const selection = window.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+            setMentionQuery(null);
+            setMentionPosition(null);
+            setMentionRange(null);
+            handleChange();
         }
     };
 
@@ -62,10 +166,11 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
             flexDirection: 'column',
             border: '1px solid hsl(var(--color-border))',
             borderRadius: '8px',
-            overflow: 'hidden',
+            overflow: 'visible', // Changed to visible for popup
             backgroundColor: 'white',
             boxShadow: isFocused ? '0 0 0 2px hsl(var(--color-brand-light))' : 'none',
-            transition: 'box-shadow 0.2s'
+            transition: 'box-shadow 0.2s',
+            position: 'relative'
         }}>
             {/* Toolbar */}
             <div style={{
@@ -124,8 +229,16 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                 ref={editorRef}
                 contentEditable
                 onInput={handleChange}
+                onKeyUp={(e) => {
+                    // Navigate mention list TODO
+                    if (e.key === 'Escape') setMentionQuery(null);
+                }}
                 onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
+                onBlur={() => {
+                    setIsFocused(false);
+                    // Delay to allow click
+                    setTimeout(() => setMentionQuery(null), 200);
+                }}
                 style={{
                     minHeight: '120px',
                     padding: '16px',
@@ -136,17 +249,53 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                 className="rich-text-content"
             />
 
-            {/* Placeholder shim */}
-            {!value && (
+            {/* Mention Suggestions Popup */}
+            {mentionQuery !== null && filteredMembers.length > 0 && (
                 <div style={{
-                    position: 'absolute',
-                    pointerEvents: 'none',
-                    padding: '16px 16px 57px 16px', // match editor padding + toolbar height approx
-                    color: '#aaa',
-                    fontSize: '14px',
-                    display: value ? 'none' : 'block' // Simple toggle
+                    position: 'fixed', // Use fixed to handle viewport relative from getBoundingClientRect
+                    top: mentionPosition?.top,
+                    left: mentionPosition?.left,
+                    backgroundColor: 'white',
+                    border: '1px solid hsl(var(--color-border))',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 9999,
+                    minWidth: '200px',
+                    maxHeight: '200px',
+                    overflowY: 'auto'
                 }}>
-                    {/* Actually positioning is tricky without relative parent, let's skip visual placeholder for MVP or fix CSS */}
+                    {filteredMembers.map((member, i) => (
+                        <div
+                            key={member.id}
+                            onClick={() => insertMention(member.profiles?.full_name || member.profiles?.email)}
+                            style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                borderBottom: i < filteredMembers.length - 1 ? '1px solid #f0f0f0' : 'none'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                            <div style={{
+                                width: '24px', height: '24px', borderRadius: '50%',
+                                backgroundColor: '#ccc', overflow: 'hidden',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '10px', color: 'white', fontWeight: 'bold'
+                            }}>
+                                {member.profiles?.avatar_url ? (
+                                    <img src={member.profiles.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    (member.profiles?.full_name?.[0] || member.profiles?.email?.[0] || '?').toUpperCase()
+                                )}
+                            </div>
+                            <span style={{ fontSize: '13px', color: '#333' }}>
+                                {member.profiles?.full_name || member.profiles?.email}
+                            </span>
+                        </div>
+                    ))}
                 </div>
             )}
 

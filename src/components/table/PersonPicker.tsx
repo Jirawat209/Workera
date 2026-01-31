@@ -70,9 +70,11 @@ export const PersonPicker = ({ currentValue = [], position, onSelect, onClose, b
     }, [onClose]);
 
     const handleSelectUser = async (targetUser: any, isMember: boolean) => {
+        const userId = isMember ? targetUser.user_id : targetUser.id;
+
         if (isMember) {
             // Direct Assignment
-            onSelect(targetUser.id || targetUser.user_id); // Handle both profile and member objects
+            onSelect(userId);
         } else {
             // Trigger Invite Flow
             setInviteCandidate(targetUser);

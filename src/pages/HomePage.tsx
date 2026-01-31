@@ -117,115 +117,51 @@ export const HomePage = () => {
 // Sub-component for Feed to handle its own logic
 const InboxFeed = () => {
     const { user } = useAuth();
-    const { loadUserData } = useBoardStore();
-    const [notifications, setNotifications] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const notifications = useBoardStore(state => state.notifications || []);
+    const loadNotifications = useBoardStore(state => state.loadNotifications);
+    const navigateTo = useBoardStore(state => state.navigateTo);
+    const isLoading = useBoardStore(state => state.isLoading);
     const [processingId, setProcessingId] = useState<string | null>(null);
+
+    // Filter to show limited items in feed (top 5)
+    // We can assume store has them sorted
+    const feedNotifications = notifications.slice(0, 5);
 
     useEffect(() => {
         if (user?.id) loadNotifications();
-    }, [user?.id]); // Fix dependency to avoid unnecessary reloads
+    }, [user?.id, loadNotifications]);
 
-    const loadNotifications = async () => {
-        setIsLoading(true);
-        const { data } = await supabase
-            .from('notifications')
-            .select('*')
-            // Show latest 10, regardless of read status (or maybe filter by not dismissed? 
-            // but for now let's match behavior: show recent)
-            // Actually, NotificationBell shows all recent. 
-            // Let's show unread + recent read ones if we want, but user said "Update Feed".
-            // Let's keep showing all latest 5 for context, sorted by date.
-            .order('created_at', { ascending: false })
-            .limit(5);
-        setNotifications(data || []);
-        setIsLoading(false);
-    };
 
     const dismissNotification = async (notificationId: string) => {
         setProcessingId(notificationId);
-
-        // Optimistically remove from UI immediately
-        setNotifications(prev => prev.filter(n => n.id !== notificationId));
-
         try {
-            const { error } = await supabase
-                .from('notifications')
-                .delete()
-                .eq('id', notificationId);
-
-            if (error) {
-                console.error('Error dismissing notification:', error);
-                await loadNotifications(); // Restore on error
-            }
+            const { error } = await supabase.from('notifications').delete().eq('id', notificationId);
+            if (!error) await loadNotifications();
         } catch (err) {
             console.error(err);
-            await loadNotifications();
         } finally {
             setProcessingId(null);
         }
     };
 
-    const handleMarkAsRead = async (notification: any) => {
-        // Instant visual feedback if we were hiding it, but here maybe we just mark read
-        // For now let's treat "EyeOff" as dismiss/hide from feed
-        dismissNotification(notification.id);
-    };
+    const handleMarkAsRead = (n: any) => dismissNotification(n.id);
 
     const handleAcceptInvite = async (notification: any) => {
         setProcessingId(notification.id);
-
-        // Optimistically update UI
-        setNotifications(prev => prev.map(n =>
-            n.id === notification.id
-                ? { ...n, status: 'accepted', is_read: true }
-                : n
-        ));
-
         try {
             if (notification.type === 'workspace_invite') {
                 const { workspace_id, role } = notification.data;
-                const { data: existing } = await supabase
-                    .from('workspace_members')
-                    .select('id')
-                    .eq('workspace_id', workspace_id)
-                    .eq('user_id', user?.id)
-                    .single();
-
-                if (!existing) {
-                    await supabase.from('workspace_members').insert({ workspace_id, user_id: user?.id, role });
-                }
+                const { data: existing } = await supabase.from('workspace_members').select('id').eq('workspace_id', workspace_id).eq('user_id', user?.id).single();
+                if (!existing) await supabase.from('workspace_members').insert({ workspace_id, user_id: user?.id, role });
             } else if (notification.type === 'board_invite') {
                 const { board_id, role } = notification.data;
-                const { data: existing } = await supabase
-                    .from('board_members')
-                    .select('id')
-                    .eq('board_id', board_id)
-                    .eq('user_id', user?.id)
-                    .single();
-
-                if (!existing) {
-                    await supabase.from('board_members').insert({ board_id, user_id: user?.id, role });
-                }
+                const { data: existing } = await supabase.from('board_members').select('id').eq('board_id', board_id).eq('user_id', user?.id).single();
+                if (!existing) await supabase.from('board_members').insert({ board_id, user_id: user?.id, role });
             }
-
-            // Update status in DB
-            const { error } = await supabase
-                .from('notifications')
-                .update({ is_read: true, status: 'accepted' })
-                .eq('id', notification.id);
-
-            if (error) {
-                // Revert on error
-                await loadNotifications();
-                return;
-            }
-
-            // Reload permissions silently
-            await loadUserData(true);
-        } catch (error) {
-            console.error('Error accepting:', error);
+            await supabase.from('notifications').update({ is_read: true, status: 'accepted' }).eq('id', notification.id);
             await loadNotifications();
+        } catch (error) {
+            console.error(error);
         } finally {
             setProcessingId(null);
         }
@@ -233,26 +169,11 @@ const InboxFeed = () => {
 
     const handleDeclineInvite = async (notification: any) => {
         setProcessingId(notification.id);
-
-        // Optimistically update UI
-        setNotifications(prev => prev.map(n =>
-            n.id === notification.id
-                ? { ...n, status: 'declined', is_read: true }
-                : n
-        ));
-
         try {
-            const { error } = await supabase
-                .from('notifications')
-                .update({ is_read: true, status: 'declined' })
-                .eq('id', notification.id);
-
-            if (error) {
-                await loadNotifications();
-            }
-        } catch (error) {
-            console.error('Error declining:', error);
+            await supabase.from('notifications').update({ is_read: true, status: 'declined' }).eq('id', notification.id);
             await loadNotifications();
+        } catch (error) {
+            console.error(error);
         } finally {
             setProcessingId(null);
         }
@@ -272,14 +193,25 @@ const InboxFeed = () => {
 
     return (
         <section>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-                <div style={{
-                    width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#0073ea', color: 'white',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600
-                }}>
-                    {notifications.length}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                        width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#0073ea', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600
+                    }}>
+                        {feedNotifications.length}
+                    </div>
+                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#323338', margin: 0 }}>Update feed (Inbox)</h2>
                 </div>
-                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#323338', margin: 0 }}>Update feed (Inbox)</h2>
+                {/* See All Button */}
+                <button
+                    onClick={() => navigateTo('notifications')}
+                    style={{
+                        background: 'transparent', border: 'none', color: '#0073ea', cursor: 'pointer', fontSize: '14px', fontWeight: 500
+                    }}
+                >
+                    See all
+                </button>
             </div>
 
             <div style={{
@@ -289,15 +221,15 @@ const InboxFeed = () => {
                 padding: '24px',
                 minHeight: '100px'
             }}>
-                {isLoading ? (
+                {isLoading && feedNotifications.length === 0 ? (
                     <div style={{ textAlign: 'center', color: '#676879' }}>Loading updates...</div>
-                ) : notifications.length === 0 ? (
+                ) : feedNotifications.length === 0 ? (
                     <div style={{ textAlign: 'center', color: '#676879', padding: '20px' }}>
                         No feedback coming
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {notifications.map(n => (
+                        {feedNotifications.map(n => (
                             <div key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '16px', position: 'relative' }}>
                                 <div style={{
                                     width: '40px', height: '40px', borderRadius: '50%',
@@ -314,7 +246,6 @@ const InboxFeed = () => {
                                         {n.message}
                                     </p>
 
-                                    {/* Status Message for Accepted/Declined */}
                                     {n.status && n.status !== 'pending' && (
                                         <div style={{
                                             padding: '12px',
@@ -339,7 +270,6 @@ const InboxFeed = () => {
                                         </div>
                                     )}
 
-                                    {/* Action Buttons */}
                                     {(n.type === 'workspace_invite' || n.type === 'board_invite') &&
                                         (!n.status || n.status === 'pending') && (
                                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
@@ -385,7 +315,6 @@ const InboxFeed = () => {
                                         <span style={{ fontSize: '12px', color: '#9ba0b0' }}>{formatTime(n.created_at)}</span>
                                     </div>
                                 </div>
-                                {/* Hide / Mark as Read Button (Dismiss) */}
                                 <button
                                     onClick={() => handleMarkAsRead(n)}
                                     title="Dismiss"

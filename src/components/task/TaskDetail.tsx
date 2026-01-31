@@ -126,14 +126,14 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                     >
                         <tab.icon size={16} />
                         {tab.label}
-                        {tab.id === 'updates' && activeItem.updates && activeItem.updates.length > 0 && (
+                        {tab.id === 'updates' && Array.isArray(activeItem.updates) && activeItem.updates.filter(u => typeof u === 'object' && u?.id).length > 0 && (
                             <span style={{
                                 background: 'hsl(var(--color-brand-primary))',
                                 color: 'white',
                                 padding: '2px 6px',
                                 borderRadius: '10px',
                                 fontSize: '11px'
-                            }}>{activeItem.updates.length}</span>
+                            }}>{activeItem.updates.filter(u => typeof u === 'object' && u?.id).length}</span>
                         )}
                     </button>
                 ))}
@@ -175,7 +175,7 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                         </div>
 
                         {/* Updates List */}
-                        {(!activeItem.updates || activeItem.updates.length === 0) ? (
+                        {(!activeItem.updates || !Array.isArray(activeItem.updates) || activeItem.updates.filter(u => typeof u === 'object' && u?.id).length === 0) ? (
                             <div style={{ textAlign: 'center', color: '#888', padding: '40px' }}>
                                 <div style={{ marginBottom: '16px' }}>
                                     <img src="https://cdn.monday.com/images/pulse-page-empty-state.svg" alt="No updates" style={{ width: '200px', opacity: 0.6 }} />
@@ -185,7 +185,7 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                {activeItem.updates.map(update => (
+                                {activeItem.updates.filter(u => typeof u === 'object' && u?.id).map(update => (
                                     <div key={update.id} style={{
                                         backgroundColor: 'white',
                                         borderRadius: '8px',

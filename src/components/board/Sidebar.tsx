@@ -336,7 +336,7 @@ export const Sidebar = () => {
                             width: '24px',
                             height: '24px',
                             borderRadius: '4px',
-                            backgroundColor: '#579bfc',
+                            backgroundColor: activeTab === 'shared' ? '#6b7280' : '#579bfc',
                             color: 'white',
                             display: 'flex',
                             alignItems: 'center',
@@ -346,7 +346,7 @@ export const Sidebar = () => {
                             position: 'relative',
                             flexShrink: 0
                         }}>
-                            {activeWorkspace?.title.charAt(0).toUpperCase()}
+                            {activeTab === 'shared' ? <Users size={14} /> : activeWorkspace?.title.charAt(0).toUpperCase()}
                             <div style={{
                                 position: 'absolute',
                                 bottom: '-2px',
@@ -360,7 +360,7 @@ export const Sidebar = () => {
                             </div>
                         </div>
                         <span style={{ fontSize: '14px', fontWeight: 600, color: '#323338', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {activeWorkspace?.title || 'Loading...'}
+                            {activeTab === 'shared' ? 'Shared with me' : (activeWorkspace?.title || 'Loading...')}
                         </span>
                         <ChevronDown size={16} color="#676879" style={{ flexShrink: 0 }} />
                     </div>
@@ -418,7 +418,9 @@ export const Sidebar = () => {
                                 />
                             </div>
 
-                            <div style={{ marginBottom: '8px', fontSize: '14px', color: '#676879' }}>My workspaces</div>
+                            <div style={{ marginBottom: '8px', fontSize: '14px', color: '#676879' }}>
+                                {activeTab === 'shared' ? 'Shared with me' : 'My workspaces'}
+                            </div>
 
                             <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                 {filteredWorkspaces.map(ws => (
@@ -546,20 +548,19 @@ export const Sidebar = () => {
                                 </div>
                             )}
 
-                            <div style={{ borderTop: '1px solid #e6e9ef', paddingTop: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                <div
-                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px' }}
-                                    onClick={() => {
-                                        setIsCreatingWorkspace(true);
-                                        setIsWorkspaceDropdownOpen(false);
-                                    }}
-                                >
-                                    <Plus size={16} /> Add workspace
+                            {activeTab !== 'shared' && (
+                                <div style={{ borderTop: '1px solid #e6e9ef', paddingTop: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <div
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px' }}
+                                        onClick={() => {
+                                            setIsCreatingWorkspace(true);
+                                            setIsWorkspaceDropdownOpen(false);
+                                        }}
+                                    >
+                                        <Plus size={16} /> Add workspace
+                                    </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px', marginLeft: 'auto' }}>
-                                    <LayoutGrid size={16} /> Browse all
-                                </div>
-                            </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -696,6 +697,12 @@ export const Sidebar = () => {
                         ))}
                     </SortableContext>
                 </DndContext>
+
+                {filteredBoards.length === 0 && (
+                    <div style={{ padding: '32px 16px', textAlign: 'center', color: '#676879', fontSize: '13px' }}>
+                        {activeTab === 'shared' ? 'No boards shared yet' : 'No boards found'}
+                    </div>
+                )}
 
                 {/* Draw Board Context Menu Outside of SortableItem to avoid transform issues */}
                 {activeBoardMenu && (

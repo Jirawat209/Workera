@@ -196,7 +196,7 @@ export const Row = ({
                 </div>
 
                 {/* Comment Count Bubble (if any) */}
-                {item.updates && item.updates.length > 0 && (
+                {Array.isArray(item.updates) && item.updates.filter(u => typeof u === 'object' && u?.id).length > 0 && (
                     <div
                         onClick={() => {
                             import('../../store/useBoardStore').then(({ useBoardStore }) => {
@@ -213,7 +213,7 @@ export const Row = ({
                             cursor: 'pointer',
                             flexShrink: 0
                         }}>
-                        {item.updates.length}
+                        {item.updates.filter(u => typeof u === 'object' && u?.id).length}
                     </div>
                 )}
             </div>
