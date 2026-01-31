@@ -1,11 +1,9 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useBoardStore } from '../../store/useBoardStore';
 import { usePermission } from '../../hooks/usePermission';
-import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, Share2 } from 'lucide-react';
-import { NotificationBell } from '../notifications/NotificationBell';
+import { Share2 } from 'lucide-react';
 import { ShareBoardModal } from '../workspace/ShareBoardModal';
 
 interface BoardHeaderProps {
@@ -13,42 +11,23 @@ interface BoardHeaderProps {
 }
 
 export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
+    const { can } = usePermission();
+
     const board = useBoardStore(state => state.boards.find(b => b.id === boardId));
     const updateBoardTitle = useBoardStore(state => state.updateBoardTitle);
-    const { user, signOut } = useAuth();
-    const { can } = usePermission();
+    // Share modal state
+    const [showShareModal, setShowShareModal] = useState(false);
 
     // Local state for renaming
     const [isEditing, setIsEditing] = useState(false);
     const [title, setTitle] = useState('');
-
-    // Profile dropdown state
-    const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const profileMenuRef = useRef<HTMLDivElement>(null);
-
-    // Share modal state
-    const [showShareModal, setShowShareModal] = useState(false);
 
     useEffect(() => {
         if (board) setTitle(board.title);
     }, [board?.title]);
 
     // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-                setShowProfileMenu(false);
-            }
-        };
 
-        if (showProfileMenu) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [showProfileMenu]);
 
     if (!board) return null;
 
@@ -70,14 +49,9 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
         }
     };
 
-    const handleSignOut = async () => {
-        await signOut();
-        setShowProfileMenu(false);
-    };
 
-    // Get user avatar or initials
-    const userAvatar = user?.user_metadata?.avatar_url;
-    const userInitials = (user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User').charAt(0).toUpperCase();
+
+
 
     return (
         <header style={{
@@ -141,7 +115,7 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
 
             {/* Right Side: Share + Notifications + Profile */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {/* Share Button */}
+                {/* Share Button (Keep Only) */}
                 {can('create_board') && (
                     <motion.button
                         whileHover={{ scale: 1.05 }}
@@ -169,110 +143,6 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
                         <span>Share</span>
                     </motion.button>
                 )}
-
-                {/* Notification Bell */}
-                <NotificationBell />
-
-                {/* Profile Dropdown */}
-                <div style={{ position: 'relative' }} ref={profileMenuRef}>
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowProfileMenu(!showProfileMenu)}
-                        style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            border: 'none',
-                            cursor: 'pointer',
-                            overflow: 'hidden',
-                            backgroundColor: userAvatar ? 'transparent' : '#0073ea',
-                            color: 'white',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            // transition: 'transform 0.2s', // Conflict with motion
-                            padding: 0
-                        }}
-                        title={user?.email || 'Profile'}
-                    >
-                        {userAvatar ? (
-                            <img
-                                src={userAvatar}
-                                alt="Profile"
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'cover'
-                                }}
-                            />
-                        ) : (
-                            userInitials
-                        )}
-                    </motion.button>
-
-                    {/* Profile Dropdown Menu */}
-                    {showProfileMenu && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '48px',
-                            right: 0,
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                            minWidth: '240px',
-                            zIndex: 1000,
-                            border: '1px solid hsl(var(--color-border))',
-                            overflow: 'hidden'
-                        }}>
-                            {/* User Info */}
-                            <div style={{
-                                padding: '16px',
-                                borderBottom: '1px solid hsl(var(--color-border))'
-                            }}>
-                                <div style={{
-                                    fontWeight: 600,
-                                    fontSize: '14px',
-                                    marginBottom: '4px',
-                                    color: 'hsl(var(--color-text-primary))'
-                                }}>
-                                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
-                                </div>
-                                <div style={{
-                                    fontSize: '13px',
-                                    color: 'hsl(var(--color-text-tertiary))'
-                                }}>
-                                    {user?.email}
-                                </div>
-                            </div>
-
-                            {/* Logout Button */}
-                            <button
-                                onClick={handleSignOut}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 16px',
-                                    border: 'none',
-                                    backgroundColor: 'transparent',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    fontSize: '14px',
-                                    color: 'hsl(var(--color-text-primary))',
-                                    transition: 'background-color 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                            >
-                                <LogOut size={16} />
-                                <span>Log out</span>
-                            </button>
-                        </div>
-                    )}
-                </div>
             </div>
 
             {/* Share Board Modal */}

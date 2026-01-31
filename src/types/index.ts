@@ -41,6 +41,7 @@ export interface Item {
     // The "Name" or first frozen column is stored in 'title',
     // but the system treats it as a column for rendering in some contexts.
     groupId: string; // Link to Group
+    boardId: string; // Link to Board
     values: ItemValue;
     updates?: Comment[]; // For Task Sidebar
     isHidden?: boolean;

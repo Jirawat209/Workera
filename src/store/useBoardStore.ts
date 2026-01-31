@@ -17,6 +17,7 @@ interface BoardState {
 
     // Async State
     isLoading: boolean;
+    isSyncing: boolean;
     error: string | null;
     loadUserData: (isSilent?: boolean) => Promise<void>;
 
@@ -107,6 +108,11 @@ interface BoardState {
     updateMemberRole: (memberId: string, newRole: string, type: 'workspace' | 'board') => Promise<void>;
     removeMember: (memberId: string, type: 'workspace' | 'board') => Promise<void>;
     isLoadingMembers: boolean;
+
+    // Phase 3: Person Picker & Mentions
+    searchUsers: (query: string) => Promise<any[]>;
+    inviteAndAssignUser: (boardId: string, userId: string, role: string, itemId: string, columnId: string) => Promise<void>;
+    createNotification: (userId: string, type: string, content: string, entityId: string) => Promise<void>;
 }
 
 
@@ -125,11 +131,15 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     activeItemId: null,
     searchQuery: '',
     isLoading: true,
+    isSyncing: false,
     error: null,
 
     loadUserData: async (isSilent = false) => {
-        if (!isSilent) set({ isLoading: true, error: null });
-        else set({ error: null });
+        if (!isSilent) {
+            set({ isLoading: true, error: null });
+        } else {
+            set({ isSyncing: true, error: null });
+        }
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
@@ -152,6 +162,34 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                 supabase.from('items').select('*').order('order'),
                 supabase.from('board_members').select('board_id').eq('user_id', user.id)
             ]);
+
+            // --- SELF HEALING: Fix 'Person' columns that are somehow 'text' type ---
+            if (columns && columns.length > 0) {
+                const buggedColumns = columns.filter(c => (c.title === 'Person' || c.title === 'Owner') && c.type === 'text');
+                if (buggedColumns.length > 0) {
+                    console.log('[AutoFix] Found bugged Person columns:', buggedColumns.length);
+                    await Promise.all(buggedColumns.map(c =>
+                        supabase.from('columns').update({ type: 'people', options: [] }).eq('id', c.id)
+                    ));
+                    // Update local reference so the app renders correctly immediately
+                    buggedColumns.forEach(c => { c.type = 'people'; c.options = []; });
+                }
+            }
+            // ---------------------------------------------------------------------
+
+            console.log('[DEBUG] loadUserData fetched IDs:', {
+                boardIds: boards?.map(b => b.id),
+                itemIds: items?.map(i => i.id)
+            });
+
+            console.log('[DEBUG] loadUserData fetched:', {
+                workspaces: workspaces?.length,
+                boards: boards?.length,
+                groups: groups?.length,
+                columns: columns?.length,
+                items: items?.length,
+                sharedBoards: sharedBoardsData?.length
+            });
 
             if (!workspaces || !boards) throw new Error('Failed to load core data');
 
@@ -288,6 +326,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                             id: i.id,
                             title: i.title,
                             groupId: g.id,
+                            boardId: b.id,
                             values: i.values || {},
                             isHidden: i.is_hidden,
                             updates: i.updates || []
@@ -297,6 +336,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                         id: i.id,
                         title: i.title,
                         groupId: i.group_id,
+                        boardId: b.id,
                         values: i.values || {},
                         isHidden: i.is_hidden,
                         updates: i.updates || []
@@ -327,12 +367,21 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
             // If we restored a board, fetch its members
             if (activeBoardId) {
-                get().setActiveBoard(activeBoardId);
+                if (isSilent && activeBoardId === get().activeBoardId) {
+                    // SILENT REFRESH: Fetch members without triggering global loading state
+                    const members = await get().getBoardMembers(activeBoardId);
+                    set({ activeBoardMembers: members });
+                } else {
+                    // INITIAL LOAD or BOARD CHANGE: Trigger full setup (with potential loading UI)
+                    get().setActiveBoard(activeBoardId);
+                }
             }
 
         } catch (e) {
             console.error(e);
-            set({ error: (e as Error).message, isLoading: false });
+            set({ error: (e as Error).message, isLoading: false, isSyncing: false });
+        } finally {
+            if (isSilent) set({ isSyncing: false });
         }
     },
 
@@ -643,27 +692,38 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     addItem: async (title, groupId) => {
         const { activeBoardId, boards } = get();
         if (!activeBoardId) return;
+
         const newItemId = uuidv4();
         const currentBoard = boards.find(b => b.id === activeBoardId);
+
         if (!currentBoard) return;
+
+        const targetGroup = currentBoard.groups.find(g => g.id === groupId);
 
         const values: ItemValue = {};
 
-        // Populate Default Values
-        currentBoard.columns.forEach(col => {
-            if (col.type === 'status') {
-                const options = col.options || [];
-                // Priority: To Do -> New -> Working on it -> Last Option (usually Gray/Default)
-                const defaultOpt = options.find(o => o.label === 'To Do')
-                    || options.find(o => o.label === 'New')
-                    || options.find(o => o.label.includes('Working'))
-                    || options[options.length - 1]; // Fallback to last option
 
-                if (defaultOpt) {
-                    values[col.id] = defaultOpt.label;
+        // Populate Default Values (Safeguarded)
+        if (currentBoard.columns && Array.isArray(currentBoard.columns)) {
+            currentBoard.columns.forEach(col => {
+                try {
+                    if (col.type === 'status') {
+                        const options = Array.isArray(col.options) ? col.options : [];
+                        // Priority: To Do -> New -> Working on it -> Last Option (usually Gray/Default)
+                        const defaultOpt = options.find(o => o.label === 'To Do')
+                            || options.find(o => o.label === 'New')
+                            || options.find(o => o.label.includes('Working'))
+                            || options[options.length - 1];
+
+                        if (defaultOpt) {
+                            values[col.id] = defaultOpt.label;
+                        }
+                    }
+                } catch (err) {
+                    // Ignore
                 }
-            }
-        });
+            });
+        }
 
         const newItem: Item = { id: newItemId, title, groupId, values, updates: [] };
 
@@ -677,7 +737,18 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                 };
             })
         }));
-        await supabase.from('items').insert({ id: newItemId, board_id: activeBoardId, group_id: groupId, title, values, order: currentBoard.items.length });
+
+        try {
+            const { error } = await supabase.from('items').insert({ id: newItemId, board_id: activeBoardId, group_id: groupId, title, values, order: currentBoard.items.length });
+            if (error) {
+                console.error("FAILED TO ADD ITEM:", error);
+                // Revert optimistic update?
+                // For now, just log it so we can see it in QA
+                set({ error: error.message });
+            }
+        } catch (err) {
+            console.error("EXCEPTION ADDING ITEM:", err);
+        }
     },
     updateItemValue: async (itemId, columnId, value) => {
         const { activeBoardId } = get();
@@ -691,7 +762,10 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         }));
         // Fetch fresh state to get full values
         const item = get().boards.find(b => b.id === activeBoardId)?.items.find(i => i.id === itemId);
-        if (item) await supabase.from('items').update({ values: item.values }).eq('id', itemId);
+        if (item) {
+            const { error } = await supabase.from('items').update({ values: item.values }).eq('id', itemId);
+            if (error) console.error('[updateItemValue] Failed to update item:', error);
+        }
     },
     updateItemTitle: async (itemId, newTitle) => {
         const { activeBoardId } = get();
@@ -703,7 +777,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                 groups: b.groups.map(g => ({ ...g, items: g.items.map(i => i.id === itemId ? { ...i, title: newTitle } : i) }))
             } : b)
         }));
-        await supabase.from('items').update({ title: newTitle }).eq('id', itemId);
+        const { error } = await supabase.from('items').update({ title: newTitle }).eq('id', itemId);
+        if (error) console.error('[updateItemTitle] Failed to update title:', error);
     },
     deleteItem: async (itemId) => {
         const { activeBoardId } = get();
@@ -719,22 +794,35 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     },
     moveItem: async (activeId, overId) => {
         const { activeBoardId, boards } = get();
-        if (!activeBoardId || activeId === overId) return;
+
+        if (!activeBoardId || activeId === overId) {
+            console.log('[DEBUG] moveItem early exit:', { activeBoardId, activeId, overId });
+            return;
+        }
 
         const board = boards.find(b => b.id === activeBoardId);
         if (!board) return;
 
-        const activeItem = board.items.find(i => i.id === activeId);
-        if (!activeItem) return;
+        console.log('[DEBUG] moveItem called:', { activeId, overId });
 
-        // Check if dropping onto a Group ID
-        const overGroup = board.groups.find(g => g.id === overId);
+        const activeItem = board.items.find(i => i.id === activeId);
+        if (!activeItem) {
+            console.error('[DEBUG] moveItem failed: activeItem not found');
+            return;
+        }
+
+        // Check if dropping onto a Group ID (handling suffixes from virtual list)
+        // Virtual items might have IDs like "group-header" or "group-footer"
+        const normalizedOverId = overId.replace(/-header$/, '').replace(/-footer$/, '');
+        const overGroup = board.groups.find(g => g.id === normalizedOverId);
+
+        console.log('[DEBUG] moveItem resolved:', { normalizedOverId, foundGroup: !!overGroup });
 
         let newItems = [...board.items];
         let newGroupId = activeItem.groupId;
 
         if (overGroup) {
-            // Case 1: Dropped onto a Group Header
+            // Case 1: Dropped onto a Group Header/Footer/Title
             newGroupId = overGroup.id;
 
             // Remove active item from current position
@@ -805,15 +893,22 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         }));
 
         // Persist
-        if (activeItem.groupId !== newGroupId) {
-            await supabase.from('items').update({ group_id: newGroupId }).eq('id', activeId);
-        }
+        // Persist
+        try {
+            if (activeItem.groupId !== newGroupId) {
+                const { error: groupError } = await supabase.from('items').update({ group_id: newGroupId }).eq('id', activeId);
+                if (groupError) console.error('[moveItem] Failed to update group:', groupError);
+            }
 
-        const itemIds = newItems.map(i => i.id);
-        await supabase.rpc('reorder_items', {
-            _board_id: activeBoardId,
-            _item_ids: itemIds
-        });
+            const itemIds = newItems.map(i => i.id);
+            const { error: reorderError } = await supabase.rpc('reorder_items', {
+                _board_id: activeBoardId,
+                _item_ids: itemIds
+            });
+            if (reorderError) console.error('[moveItem] Failed to reorder items:', reorderError);
+        } catch (err) {
+            console.error('[moveItem] Exception during persistence:', err);
+        }
     },
 
     // --- Selection & Batch ---
@@ -880,26 +975,64 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
     subscribeToRealtime: () => {
         const { activeWorkspaceId } = get();
-        if (!activeWorkspaceId) return;
+        if (!activeWorkspaceId) {
+            console.warn('[Realtime] No activeWorkspaceId, skipping subscription.');
+            return;
+        }
 
-        supabase.channel(`workspace:${activeWorkspaceId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                },
-                () => {
-                    get().loadUserData(true);
+        console.log('[Realtime] Initializing subscription for workspace:', activeWorkspaceId);
+
+        // Clean up existing
+        if (get().realtimeSubscription) supabase.removeChannel(get().realtimeSubscription as any);
+        // Clear any existing poll
+        if ((get() as any).pollingInterval) clearInterval((get() as any).pollingInterval);
+
+        const channel = supabase.channel(`workspace_updates:${activeWorkspaceId}`);
+
+        // Update store with channel ref (if we added state for it) - skipping for now to keep interface clean
+
+        channel
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, () => get().loadUserData(true))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, () => get().loadUserData(true))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'columns' }, () => get().loadUserData(true))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, () => get().loadUserData(true))
+            .subscribe((status, err) => {
+                console.log('[Realtime] Subscription status:', status);
+
+                if (status === 'SUBSCRIBED') {
+                    console.log('[Realtime] ✅ Connected to Workspace updates');
+                    // Stop polling if we managed to connect
+                    if ((get() as any).pollingInterval) {
+                        clearInterval((get() as any).pollingInterval);
+                        set({ pollingInterval: null } as any);
+                    }
                 }
-            )
-            .subscribe();
 
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    console.error(`[Realtime] ❌ Connection issue (${status}). Starting Polling Fallback.`);
 
+                    // Start Polling if not already running
+                    if (!(get() as any).pollingInterval) {
+                        console.log('[Realtime] 🔄 Fallback Polling activated (10s interval)');
+                        const interval = setInterval(() => {
+                            console.log('[Polling] Fetching latest data...');
+                            get().loadUserData(true);
+                        }, 10000);
+
+                        // Hacky: Store interval in state (need to add type to interface strictly, but for now runtime works)
+                        // Ideally we add `pollingInterval: NodeJS.Timeout | null` to BoardState
+                        set({ pollingInterval: interval } as any);
+                    }
+                }
+            });
     },
 
     unsubscribeFromRealtime: () => {
         supabase.removeAllChannels();
+        if ((get() as any).pollingInterval) {
+            clearInterval((get() as any).pollingInterval);
+            set({ pollingInterval: null } as any);
+        }
     },
 
     // --- Workspace & Board Sharing Actions ---
@@ -1052,6 +1185,75 @@ export const useBoardStore = create<BoardState>((set, get) => ({
             console.error('Error removing member:', error);
 
         }
+    },
+
+    // --- Phase 3: Person Picker Actions ---
+    searchUsers: async (query) => {
+        if (!query) return [];
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+            .limit(10);
+
+        if (error) {
+            console.error('searchUsers error:', error);
+            return [];
+        }
+        return data || [];
+    },
+
+    createNotification: async (userId, type, content, entityId) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        await supabase.from('notifications').insert({
+            user_id: userId,
+            actor_id: user.id,
+            type,
+            content,
+            entity_id: entityId
+        });
+    },
+
+    inviteAndAssignUser: async (boardId, userId, role, itemId, columnId) => {
+        const { activeBoardMembers } = get();
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+        // 1. Check if Member (optimistic check from store)
+        const isMember = activeBoardMembers.some(m => m.user_id === userId);
+
+        if (!isMember) {
+            // Invite First
+            console.log(`[Inviting] User ${userId} to board ${boardId} as ${role}`);
+            const { error: inviteError } = await supabase.from('board_members').insert({
+                board_id: boardId,
+                user_id: userId,
+                role
+            });
+
+            if (inviteError) {
+                console.error('Failed to invite user:', inviteError);
+                throw new Error('Failed to invite user');
+            }
+
+            // Update local members cache immediately
+            get().getBoardMembers(boardId).then(members => set({ activeBoardMembers: members }));
+        }
+
+        // 2. Assign Value
+        get().updateItemValue(itemId, columnId, userId);
+
+        // 3. Notify
+        const board = get().boards.find(b => b.id === boardId);
+        const boardTitle = board?.title || 'the board';
+
+        await get().createNotification(
+            userId,
+            'assignment',
+            `${currentUser?.user_metadata?.full_name || 'Someone'} assigned you to an item in ${boardTitle}`,
+            itemId
+        );
     }
 }));
 

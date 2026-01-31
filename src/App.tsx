@@ -13,6 +13,8 @@ import { LoginPage } from './pages/LoginPage';
 
 import { HomePage } from './pages/HomePage';
 
+import { TopBar } from './components/layout/TopBar';
+
 function MainApp() {
   const { activeBoardId, boards, activeItemId, setActiveItem, loadUserData, isLoading, subscribeToRealtime, unsubscribeFromRealtime, activeWorkspaceId } = useBoardStore();
   const activeBoard = boards.find(b => b.id === activeBoardId);
@@ -29,6 +31,18 @@ function MainApp() {
   useEffect(() => {
     if (activeWorkspaceId) {
       subscribeToRealtime();
+
+      // Polling Fallback to ensure consistency (30s) - running silently
+      const intervalId = setInterval(() => {
+        if (!document.hidden) {
+          loadUserData(true);
+        }
+      }, 30000);
+
+      return () => {
+        unsubscribeFromRealtime();
+        clearInterval(intervalId);
+      };
     }
     return () => unsubscribeFromRealtime();
   }, [activeWorkspaceId]);
@@ -45,6 +59,7 @@ function MainApp() {
     <div className="app-container" style={{ height: '100vh', display: 'flex' }}>
       <Sidebar />
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'hsl(var(--color-bg-canvas))' }}>
+        <TopBar />
         {activeBoard ? (
           <>
             <BoardHeader boardId={activeBoard.id} />

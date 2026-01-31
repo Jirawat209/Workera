@@ -228,18 +228,35 @@ export const Sidebar = () => {
     return (
         <aside className="sidebar">
             <div className="sidebar-header" style={{ padding: '0 16px', marginBottom: '12px', width: '100%', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ marginBottom: '16px', marginTop: '12px' }}>
-                    <span style={{ fontSize: '20px', fontWeight: 400, color: '#9699aa' }}>Workera</span>
+                <div
+                    onClick={() => setActiveBoard(null)}
+                    style={{
+                        marginBottom: '16px',
+                        marginTop: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        userSelect: 'none'
+                    }}
+                >
+                    <div style={{
+                        width: '32px',
+                        height: '32px',
+                        background: 'linear-gradient(135deg, #0073ea 0%, #00c875 100%)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+                    }}>
+                        <LayoutGrid size={20} strokeWidth={2.5} />
+                    </div>
+                    <span style={{ fontSize: '22px', fontWeight: 700, color: '#323338', letterSpacing: '-0.5px' }}>Workera</span>
                 </div>
 
-                <div
-                    className={clsx('sidebar-item', { active: activeBoardId === null })}
-                    onClick={() => setActiveBoard(null)}
-                    style={{ marginBottom: '12px', cursor: 'pointer' }}
-                >
-                    <Home size={16} />
-                    <span className="sidebar-item-label">Home</span>
-                </div>
+
 
                 {/* Tab Switcher */}
                 <div style={{
@@ -296,245 +313,257 @@ export const Sidebar = () => {
                     </button>
                 </div>
 
-                {/* Workspace Selector - Only show for My Workspaces */}
-                {activeTab === 'my-workspaces' && (
-                    <div style={{ display: 'flex', gap: '8px', position: 'relative', width: '100%' }}>
-                        <div
-                            className="workspace-switcher-trigger"
-                            onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
-                            style={{
-                                flex: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '6px 8px',
-                                border: '1px solid #c3c6d4',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                backgroundColor: 'white',
-                                position: 'relative',
-                                minWidth: 0
-                            }}
-                        >
-                            <div style={{
-                                width: '24px',
-                                height: '24px',
-                                borderRadius: '4px',
-                                backgroundColor: '#579bfc',
-                                color: 'white',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                position: 'relative',
-                                flexShrink: 0
-                            }}>
-                                {activeWorkspace?.title.charAt(0).toUpperCase()}
-                                <div style={{
-                                    position: 'absolute',
-                                    bottom: '-2px',
-                                    right: '-2px',
-                                    backgroundColor: '#323338',
-                                    borderRadius: '50%',
-                                    padding: '2px',
-                                    display: 'flex'
-                                }}>
-                                    <Home size={8} color="white" />
-                                </div>
-                            </div>
-                            <span style={{ fontSize: '14px', fontWeight: 600, color: '#323338', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {activeWorkspace?.title || 'Loading...'}
-                            </span>
-                            <ChevronDown size={16} color="#676879" style={{ flexShrink: 0 }} />
-                        </div>
-
-                        <button
-                            className="workspace-add-btn"
-                            style={{
-                                width: '38px',
-                                height: '38px',
-                                backgroundColor: '#0073ea',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                flexShrink: 0
-                            }}
-                            onClick={() => setIsCreating(true)}
-                            title="Create New Board"
-                        >
-                            <Plus size={24} />
-                        </button>
-                        {isWorkspaceDropdownOpen && (
+                {/* Workspace Selector - Always Show */}
+                <div style={{ display: 'flex', gap: '8px', position: 'relative', width: '100%' }}>
+                    <div
+                        className="workspace-switcher-trigger"
+                        onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
+                        style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            border: '1px solid #c3c6d4',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            backgroundColor: 'white',
+                            position: 'relative',
+                            minWidth: 0
+                        }}
+                    >
+                        <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '4px',
+                            backgroundColor: '#579bfc',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            position: 'relative',
+                            flexShrink: 0
+                        }}>
+                            {activeWorkspace?.title.charAt(0).toUpperCase()}
                             <div style={{
                                 position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                width: '300px',
-                                backgroundColor: 'white',
-                                borderRadius: '8px',
-                                boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
-                                border: '1px solid #e6e9ef',
-                                zIndex: 1000,
-                                marginTop: '8px',
-                                padding: '16px'
-                            }} onClick={(e) => e.stopPropagation()}>
-                                <div style={{ position: 'relative', marginBottom: '16px' }}>
-                                    <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#676879' }} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search for a workspace"
-                                        style={{
-                                            width: '100%',
-                                            padding: '8px 8px 8px 30px',
-                                            borderRadius: '4px',
-                                            border: '1px solid #c3c6d4', // Lighter border
-                                            backgroundColor: 'white', // Explicit white bg
-                                            fontSize: '13px',
-                                            outline: 'none',
-                                            color: '#323338'
-                                        }}
-                                        autoFocus
-                                    />
-                                </div>
+                                bottom: '-2px',
+                                right: '-2px',
+                                backgroundColor: '#323338',
+                                borderRadius: '50%',
+                                padding: '2px',
+                                display: 'flex'
+                            }}>
+                                <Home size={8} color="white" />
+                            </div>
+                        </div>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#323338', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {activeWorkspace?.title || 'Loading...'}
+                        </span>
+                        <ChevronDown size={16} color="#676879" style={{ flexShrink: 0 }} />
+                    </div>
 
-                                <div style={{ marginBottom: '8px', fontSize: '14px', color: '#676879' }}>My workspaces</div>
+                    <button
+                        className="workspace-add-btn"
+                        style={{
+                            width: '38px',
+                            height: '38px',
+                            backgroundColor: '#0073ea',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            flexShrink: 0
+                        }}
+                        onClick={() => setIsCreating(true)}
+                        title="Create New Board"
+                    >
+                        <Plus size={24} />
+                    </button>
+                    {isWorkspaceDropdownOpen && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            width: '300px',
+                            backgroundColor: 'white',
+                            borderRadius: '8px',
+                            boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+                            border: '1px solid #e6e9ef',
+                            zIndex: 1000,
+                            marginTop: '8px',
+                            padding: '16px'
+                        }} onClick={(e) => e.stopPropagation()}>
+                            <div style={{ position: 'relative', marginBottom: '16px' }}>
+                                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#676879' }} />
+                                <input
+                                    type="text"
+                                    placeholder="Search for a workspace"
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px 8px 8px 30px',
+                                        borderRadius: '4px',
+                                        border: '1px solid #c3c6d4', // Lighter border
+                                        backgroundColor: 'white', // Explicit white bg
+                                        fontSize: '13px',
+                                        outline: 'none',
+                                        color: '#323338'
+                                    }}
+                                    autoFocus
+                                />
+                            </div>
 
-                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    {filteredWorkspaces.map(ws => (
-                                        <div
-                                            key={ws.id}
-                                            onClick={() => {
-                                                setActiveWorkspace(ws.id);
-                                                setIsWorkspaceDropdownOpen(false);
-                                            }}
-                                            className="workspace-item-row"
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                padding: '8px',
-                                                backgroundColor: ws.id === activeWorkspaceId ? '#e5f4ff' : 'transparent',
-                                                borderRadius: '4px',
-                                                cursor: 'pointer',
-                                                marginBottom: '4px',
-                                                position: 'relative'
-                                            }}
-                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = ws.id === activeWorkspaceId ? '#e5f4ff' : '#f5f6f8'}
-                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = ws.id === activeWorkspaceId ? '#e5f4ff' : 'transparent'}
-                                        >
-                                            <div style={{
-                                                width: '32px',
-                                                height: '32px',
-                                                borderRadius: '6px',
-                                                backgroundColor: '#579bfc',
-                                                color: 'white',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                fontSize: '16px',
-                                                fontWeight: 600,
-                                                flexShrink: 0
-                                            }}>
-                                                {ws.title.charAt(0).toUpperCase()}
-                                            </div>
+                            <div style={{ marginBottom: '8px', fontSize: '14px', color: '#676879' }}>My workspaces</div>
 
-                                            {editingWorkspaceId === ws.id ? (
-                                                <input
-                                                    autoFocus
-                                                    value={editWorkspaceTitle}
-                                                    onChange={(e) => setEditWorkspaceTitle(e.target.value)}
-                                                    onBlur={() => handleRenameWorkspace(ws.id)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleRenameWorkspace(ws.id)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    style={{ flex: 1, padding: '4px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                                />
-                                            ) : (
-                                                <span style={{ fontSize: '14px', color: '#323338', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{ws.title}</span>
-                                            )}
-
-                                            {/* Workspace Menu Trigger */}
-                                            <div className="workspace-actions" onClick={(e) => e.stopPropagation()}>
-                                                <MoreHorizontal
-                                                    size={16}
-                                                    className="action-icon"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const rect = e.currentTarget.getBoundingClientRect();
-                                                        setMenuPosition({ top: rect.bottom, left: rect.left });
-                                                        setActiveWorkspaceMenu(activeWorkspaceMenu === ws.id ? null : ws.id);
-                                                        setActiveBoardMenu(null);
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Fixed Position Workspace Menu */}
-                                {activeWorkspaceMenu && (
+                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                {filteredWorkspaces.map(ws => (
                                     <div
-                                        className="context-menu"
-                                        style={{
-                                            position: 'fixed',
-                                            top: menuPosition.top,
-                                            left: menuPosition.left,
-                                            backgroundColor: 'white',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                            borderRadius: '4px',
-                                            padding: '4px',
-                                            zIndex: 9999, // Ensure it's on top of everything
-                                            width: '160px'
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <div className="menu-item" onClick={() => {
-                                            const ws = workspaces.find(w => w.id === activeWorkspaceMenu);
-                                            if (ws) {
-                                                setEditingWorkspaceId(ws.id);
-                                                setEditWorkspaceTitle(ws.title);
-                                            }
-                                            setActiveWorkspaceMenu(null);
-                                        }}>
-                                            <Edit2 size={14} /> Rename
-                                        </div>
-                                        <div className="menu-item" onClick={() => {
-                                            duplicateWorkspace(activeWorkspaceMenu);
-                                            setActiveWorkspaceMenu(null);
-                                        }}>
-                                            <Copy size={14} /> Duplicate
-                                        </div>
-                                        <div className="menu-item delete" onClick={() => {
-                                            setWorkspaceToDelete(activeWorkspaceMenu);
-                                            setActiveWorkspaceMenu(null);
-                                        }}>
-                                            <Trash2 size={14} /> Delete
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div style={{ borderTop: '1px solid #e6e9ef', paddingTop: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                    <div
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px' }}
+                                        key={ws.id}
                                         onClick={() => {
-                                            setIsCreatingWorkspace(true);
+                                            setActiveWorkspace(ws.id);
                                             setIsWorkspaceDropdownOpen(false);
                                         }}
+                                        className="workspace-item-row"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px',
+                                            padding: '8px',
+                                            backgroundColor: ws.id === activeWorkspaceId ? '#e5f4ff' : 'transparent',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            marginBottom: '4px',
+                                            position: 'relative'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = ws.id === activeWorkspaceId ? '#e5f4ff' : '#f5f6f8'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = ws.id === activeWorkspaceId ? '#e5f4ff' : 'transparent'}
                                     >
-                                        <Plus size={16} /> Add workspace
+                                        <div style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            borderRadius: '6px',
+                                            backgroundColor: '#579bfc',
+                                            color: 'white',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '16px',
+                                            fontWeight: 600,
+                                            flexShrink: 0
+                                        }}>
+                                            {ws.title.charAt(0).toUpperCase()}
+                                        </div>
+
+                                        {editingWorkspaceId === ws.id ? (
+                                            <input
+                                                autoFocus
+                                                value={editWorkspaceTitle}
+                                                onChange={(e) => setEditWorkspaceTitle(e.target.value)}
+                                                onBlur={() => handleRenameWorkspace(ws.id)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleRenameWorkspace(ws.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ flex: 1, padding: '4px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            />
+                                        ) : (
+                                            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                <span style={{ fontSize: '14px', color: '#323338', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.title}</span>
+                                                {ws.owner_id !== user?.id && (
+                                                    <span style={{ fontSize: '10px', backgroundColor: '#e6f4ff', color: '#0073ea', padding: '2px 6px', borderRadius: '4px', width: 'fit-content' }}>Shared</span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Workspace Menu Trigger */}
+                                        <div className="workspace-actions" onClick={(e) => e.stopPropagation()}>
+                                            <MoreHorizontal
+                                                size={16}
+                                                className="action-icon"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setMenuPosition({ top: rect.bottom, left: rect.left });
+                                                    setActiveWorkspaceMenu(activeWorkspaceMenu === ws.id ? null : ws.id);
+                                                    setActiveBoardMenu(null);
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px', marginLeft: 'auto' }}>
-                                        <LayoutGrid size={16} /> Browse all
+                                ))}
+                            </div>
+
+                            {/* Fixed Position Workspace Menu */}
+                            {activeWorkspaceMenu && (
+                                <div
+                                    className="context-menu"
+                                    style={{
+                                        position: 'fixed',
+                                        top: menuPosition.top,
+                                        left: menuPosition.left,
+                                        backgroundColor: 'white',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                        borderRadius: '4px',
+                                        padding: '4px',
+                                        zIndex: 9999, // Ensure it's on top of everything
+                                        width: '160px'
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {workspaces.find(w => w.id === activeWorkspaceMenu)?.owner_id === user?.id && (
+                                        <div className="menu-item" onClick={() => {
+                                            setShareWorkspaceId(activeWorkspaceMenu);
+                                            setActiveWorkspaceMenu(null);
+                                        }}>
+                                            <Users size={14} /> Share
+                                        </div>
+                                    )}
+                                    <div className="menu-item" onClick={() => {
+                                        const ws = workspaces.find(w => w.id === activeWorkspaceMenu);
+                                        if (ws) {
+                                            setEditingWorkspaceId(ws.id);
+                                            setEditWorkspaceTitle(ws.title);
+                                        }
+                                        setActiveWorkspaceMenu(null);
+                                    }}>
+                                        <Edit2 size={14} /> Rename
+                                    </div>
+                                    <div className="menu-item" onClick={() => {
+                                        duplicateWorkspace(activeWorkspaceMenu);
+                                        setActiveWorkspaceMenu(null);
+                                    }}>
+                                        <Copy size={14} /> Duplicate
+                                    </div>
+                                    <div className="menu-item delete" onClick={() => {
+                                        setWorkspaceToDelete(activeWorkspaceMenu);
+                                        setActiveWorkspaceMenu(null);
+                                    }}>
+                                        <Trash2 size={14} /> Delete
                                     </div>
                                 </div>
+                            )}
+
+                            <div style={{ borderTop: '1px solid #e6e9ef', paddingTop: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <div
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px' }}
+                                    onClick={() => {
+                                        setIsCreatingWorkspace(true);
+                                        setIsWorkspaceDropdownOpen(false);
+                                    }}
+                                >
+                                    <Plus size={16} /> Add workspace
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px', marginLeft: 'auto' }}>
+                                    <LayoutGrid size={16} /> Browse all
+                                </div>
                             </div>
-                        )}
-                    </div>
-                )}
+                        </div>
+                    )}
+                </div>
+
 
                 {/* Workspace Creation Modal */}
                 {isCreatingWorkspace && (

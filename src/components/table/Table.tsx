@@ -207,6 +207,12 @@ export const Table = ({ boardId }: { boardId: string }) => {
         }
     };
 
+    // Debug: Log Virtual Items
+    // useEffect(() => {
+    //     console.log('[DnD] VirtualItems:', virtualItems.map(i => i.id));
+    // }, [virtualItems.length]); // logs too often?
+
+
     if (!board) return null;
 
     const activeItem = activeId ? board.items.find(i => i.id === activeId) : null;
@@ -280,7 +286,9 @@ export const Table = ({ boardId }: { boardId: string }) => {
                                 >
                                     <SortableItemWrapper
                                         id={vItem.id}
-                                        disabled={!isItem || !can('edit_items')} // Only items are draggable, and must have permission
+                                        // We enable sortable for everything so they can be valid drop targets,
+                                        // but we only attach listeners to Items (in Row.tsx), so only items are draggable.
+                                        disabled={!can('edit_items')}
                                     >
                                         {({ listeners }) => (
                                             <motion.div

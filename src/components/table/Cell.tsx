@@ -6,6 +6,7 @@ import { usePermission } from '../../hooks/usePermission';
 import { StatusPicker } from './StatusPicker';
 import { DropdownPicker } from './DropdownPicker';
 import { PersonPicker } from './PersonPicker';
+import { DatePicker } from '../ui/DatePicker';
 
 
 export const Cell = ({ item, column }: { item: Item, column: Column }) => {
@@ -69,8 +70,7 @@ export const Cell = ({ item, column }: { item: Item, column: Column }) => {
         if (!can('edit_items')) return;
 
         setIsEditing(true);
-        if ((column.type === 'status' || column.type === 'dropdown') && cellRef.current) {
-            // ...
+        if ((column.type === 'status' || column.type === 'dropdown' || column.type === 'people') && cellRef.current) {
             const rect = cellRef.current.getBoundingClientRect();
             setPickerPos({
                 top: rect.top,
@@ -137,6 +137,8 @@ export const Cell = ({ item, column }: { item: Item, column: Column }) => {
 
     // Status Rendering
     if (column.type === 'status') {
+
+
         return (
             <>
                 <div
@@ -327,6 +329,9 @@ export const Cell = ({ item, column }: { item: Item, column: Column }) => {
                             setIsEditing(false);
                             setPickerPos(null);
                         }}
+                        boardId={item.boardId || useBoardStore.getState().activeBoardId || ''}
+                        itemId={item.id}
+                        columnId={column.id}
                     />
                 )}
             </>
@@ -349,72 +354,70 @@ export const Cell = ({ item, column }: { item: Item, column: Column }) => {
             });
         };
 
-        if (isEditing) {
-            return (
-                <div className="table-cell" style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRight: '1px solid hsl(var(--color-cell-border))',
-                    padding: 0
-                }}>
-                    <input
-                        ref={inputRef}
-                        type="date"
-                        value={editValue || ''}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => {
-                            setIsEditing(false);
-                            if (editValue !== value) {
-                                updateItemValue(item.id, column.id, editValue);
+        return (
+            <>
+                <div
+                    ref={cellRef}
+                    className="table-cell"
+                    onClick={() => {
+                        if (!can('edit_items')) return;
+                        if (cellRef.current) {
+                            const rect = cellRef.current.getBoundingClientRect();
+                            setPickerPos({
+                                top: rect.bottom + 4,
+                                left: rect.left,
+                                width: rect.width,
+                                bottom: rect.bottom
+                            });
+                            setIsEditing(true);
+                        }
+                    }}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRight: '1px solid hsl(var(--color-cell-border))',
+                        padding: '0 8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: value ? 'inherit' : 'hsl(var(--color-text-tertiary))',
+                        backgroundColor: isEditing ? '#e5f4ff' : 'transparent'
+                    }}
+                >
+                    {value ? (
+                        <span>{formatDate(value)}</span>
+                    ) : (
+                        <div style={{ opacity: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                            <Calendar size={16} strokeWidth={1.5} />
+                        </div>
+                    )}
+                </div>
+
+                {isEditing && pickerPos && (
+                    <DatePicker
+                        date={value ? new Date(value) : undefined}
+                        position={pickerPos}
+                        onSelect={(date) => {
+                            if (date) {
+                                // Format as YYYY-MM-DD local time (avoid UTC shift issues)
+                                const offset = date.getTimezoneOffset();
+                                const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+                                const dateStr = localDate.toISOString().split('T')[0];
+                                updateItemValue(item.id, column.id, dateStr);
+                            } else {
+                                updateItemValue(item.id, column.id, null);
                             }
+                            setIsEditing(false);
+                            setPickerPos(null);
                         }}
-                        onKeyDown={handleKeyDown}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            border: '2px solid hsl(var(--color-brand-primary))',
-                            outline: 'none',
-                            padding: '0 8px',
-                            fontFamily: 'inherit',
-                            fontSize: 'inherit',
-                            backgroundColor: 'white',
-                            color: 'hsl(var(--color-text-primary))',
+                        onClose={() => {
+                            setIsEditing(false);
+                            setPickerPos(null);
                         }}
                     />
-                </div>
-            );
-        }
-
-        return (
-            <div
-                className="table-cell"
-                onClick={() => {
-                    if (!can('edit_items')) return;
-                    setIsEditing(true);
-                    setTimeout(() => {
-                        if (inputRef.current && 'showPicker' in inputRef.current) {
-                            (inputRef.current as any).showPicker();
-                        }
-                    }, 0);
-                }}
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRight: '1px solid hsl(var(--color-cell-border))',
-                    padding: '0 8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: value ? 'inherit' : 'hsl(var(--color-text-tertiary))'
-                }}
-            >
-                {value ? (
-                    <span>{formatDate(value)}</span>
-                ) : (
-                    <Calendar size={16} strokeWidth={1.5} style={{ opacity: 0.5 }} />
                 )}
-            </div>
+            </>
         );
     }
 
