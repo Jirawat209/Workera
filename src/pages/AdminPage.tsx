@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUserStore } from '../store/useUserStore';
 import { useBoardStore } from '../store/useBoardStore';
+import { supabase } from '../lib/supabase';
 import {
     LayoutDashboard, Users, Settings,
     ShieldCheck, Activity, ArrowLeft
@@ -12,12 +13,36 @@ export const AdminPage = () => {
     const { navigateTo } = useBoardStore();
     const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'settings'>('dashboard');
 
-    // Stats Mocks (replace with real data later)
-    const stats = [
-        { label: 'Total Users', value: '12', icon: Users, color: '#6366f1' },
-        { label: 'Active Workspaces', value: '3', icon: LayoutDashboard, color: '#10b981' },
+    // Real Stats State
+    const [stats, setStats] = useState([
+        { label: 'Total Users', value: '-', icon: Users, color: '#6366f1' },
+        { label: 'Active Workspaces', value: '-', icon: LayoutDashboard, color: '#10b981' },
         { label: 'System Health', value: '100%', icon: Activity, color: '#f59e0b' },
-    ];
+    ]);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            // 1. Get User Count
+            const { count: userCount } = await supabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true });
+
+            // 2. Get Workspace Count
+            const { count: workspaceCount } = await supabase
+                .from('workspaces')
+                .select('*', { count: 'exact', head: true });
+
+            setStats([
+                { label: 'Total Users', value: userCount?.toString() || '0', icon: Users, color: '#6366f1' },
+                { label: 'Active Workspaces', value: workspaceCount?.toString() || '0', icon: LayoutDashboard, color: '#10b981' },
+                { label: 'System Health', value: '100%', icon: Activity, color: '#f59e0b' },
+            ]);
+        };
+
+        if (activeTab === 'dashboard') {
+            fetchStats();
+        }
+    }, [activeTab]);
 
     if (currentUser.system_role !== 'super_admin' && currentUser.system_role !== 'it_admin') {
         return (
