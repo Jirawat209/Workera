@@ -17,6 +17,7 @@ import { supabase } from './lib/supabase';
 import { HomePage } from './pages/HomePage';
 import { TopBar } from './components/layout/TopBar';
 import { NotificationPage } from './pages/NotificationPage';
+import { AdminPage } from './pages/AdminPage';
 
 function MainApp() {
   const activeBoardId = useBoardStore(state => state.activeBoardId);
@@ -141,6 +142,10 @@ function MainApp() {
       if (window.location.pathname !== '/notifications') {
         window.history.pushState(null, '', '/notifications');
       }
+    } else if (activePage === 'admin') {
+      if (window.location.pathname !== '/admin') {
+        window.history.pushState(null, '', '/admin');
+      }
     } else if (activePage === 'board' && activeBoard) {
       const workspace = useBoardStore.getState().workspaces.find(w => w.id === activeBoard.workspaceId);
       const workspaceName = workspace ? slugify(workspace.title) : 'workspace';
@@ -191,7 +196,11 @@ function MainApp() {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'hsl(var(--color-bg-canvas))' }}>
         <TopBar />
 
-        {activePage === 'notifications' ? (
+        {activePage === 'admin' ? (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+            <AdminPage />
+          </div>
+        ) : activePage === 'notifications' ? (
           <NotificationPage />
         ) : activePage === 'board' && activeBoard ? (
           <>
