@@ -117,8 +117,8 @@ interface BoardState {
     // Realtime
     realtimeSubscription: any; // Using any for proper supabase channel type without heavy imports for now
 
-    activePage: 'home' | 'board' | 'notifications';
-    navigateTo: (page: 'home' | 'board' | 'notifications') => void;
+    activePage: 'home' | 'board' | 'notifications' | 'admin';
+    navigateTo: (page: 'home' | 'board' | 'notifications' | 'admin') => void;
 
     // Notifications
     notifications: Notification[];
@@ -156,6 +156,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         if (page === 'notifications') {
             window.history.pushState(null, '', '/notifications');
         } else if (page === 'home') {
+            set({ activeBoardId: null }); // Ensure board is cleared
             window.history.pushState(null, '', '/');
         }
     },
@@ -222,17 +223,32 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
             if (!workspaces || !boards) throw new Error('Failed to load core data');
 
-            // 0. ENSURE PROFILE EXISTS (Running always to ensure mention/search availability)
-            // Ideally this is handled by a database trigger, but for robustness in this dev env:
+            // 0. ENSURE PROFILE & FETCH ROLE
+            // Fetch existing profile to get system_role
+            let { data: existingProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+
             const { error: profileError } = await supabase.from('profiles').upsert({
                 id: user.id,
                 email: user.email,
                 full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-                avatar_url: user.user_metadata?.avatar_url
+                avatar_url: user.user_metadata?.avatar_url,
+                // Preserve existing system_role if it exists, otherwise default to 'user'
+                system_role: existingProfile?.system_role || 'user'
             }, { onConflict: 'id' });
 
             if (profileError) {
                 console.error("Failed to ensure profile:", profileError);
+            } else if (existingProfile) {
+                // Sync system_role to UserStore (to enable Admin UI access)
+                console.log('[Auth] System Role:', existingProfile.system_role);
+                // We need to access useUserStore from here? Ideally specific store, but we can emit event or just trust App.tsx to reload? 
+                // Actually App.tsx calls loadUserData. We should probably update the store here.
+                // But useUserStore is separate. 
+                // Let's do a direct state update if possible, or assume App.tsx will handle it if we expose it?
+                // Better approach: App.tsx manages auth state mainly. 
+                // Let's just Return the profile or let App check it?
+                // Actually, we can import the store outside the hook context if needed, strictly speaking.
+                // Or better: Update App.tsx to fetch the profile explicitly.
             }
 
             // Handle case where user has no workspace (first login)

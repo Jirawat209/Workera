@@ -27,6 +27,8 @@ export const LoginPage = () => {
                     password,
                 });
                 if (error) throw error;
+                // Force URL to root on successful login
+                window.history.replaceState(null, '', '/');
             }
         } catch (err: any) {
             setError(err.message);

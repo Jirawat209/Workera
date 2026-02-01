@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { slugify } from './lib/utils';
 import { Sidebar } from './components/board/Sidebar'
 import { BoardHeader } from './components/board/BoardHeader';
 import { useBoardStore } from './store/useBoardStore'
@@ -11,6 +12,7 @@ import { TaskDetail } from './components/task/TaskDetail';
 import { BatchActionsBar } from './components/table/BatchActionsBar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
+import { supabase } from './lib/supabase';
 
 import { HomePage } from './pages/HomePage';
 import { TopBar } from './components/layout/TopBar';
@@ -36,43 +38,125 @@ function MainApp() {
   useEffect(() => {
     console.log('MainApp: session changed', session);
     if (session) {
-      // Sync UserStore with Supabase Session
-      setUser({
-        id: session.user.id,
-        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-        email: session.user.email,
-        avatar: session.user.user_metadata?.avatar_url,
-        role: 'owner' // Simplified for now
-      });
+      const initUser = async () => {
+        // Fetch full profile to get system_role
+        const { data: profile } = await supabase.from('profiles').select('system_role').eq('id', session.user.id).single();
 
-      console.log('MainApp: calling loadUserData');
-      loadUserData();
+        // Sync UserStore with Supabase Session
+        setUser({
+          id: session.user.id,
+          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email,
+          avatar: session.user.user_metadata?.avatar_url,
+          role: 'owner',
+          system_role: (profile?.system_role as any) || 'user'
+        });
+
+        // Requirement: Always go to Home on fresh login
+        // We force the URL to / to prevent deep linking logic from picking up stale URLs
+        window.history.replaceState(null, '', '/');
+        navigateTo('home');
+
+        console.log('MainApp: calling loadUserData');
+        loadUserData();
+      };
+
+      initUser();
     }
   }, [session]);
 
   // URL Sync and Popstate Handler
   useEffect(() => {
+    // 1. Handle Popstate (Browser Back/Forward)
     const handlePopState = () => {
       const path = window.location.pathname;
       if (path === '/notifications') {
         navigateTo('notifications');
       } else if (path === '/' || path === '') {
         navigateTo('home');
-      } else if (path.startsWith('/board/')) {
-        // Logic to switch to board from URL would go here if we were doing full hydration from URL
-        // For now, we assume store populates it, or we just trust the store state.
-        // Ideally, we'd parse the ID and confirm it matches.
       }
+      // Note: We don't implement full deep link parsing on popstate here for simplicity in MVP, 
+      // relying on the user to reload if they paste a URL or standard navigation. 
+      // But we could add it. For now, we prefer the Store state to drive the URL.
+      // Exception: If back button takes us to a board URL, we should probably switch.
+      // Ideally, the Store updates should push state, so back button works.
     };
 
     window.addEventListener('popstate', handlePopState);
 
-    // Initial Hydration from URL (Basic)
-    const path = window.location.pathname;
-    if (path === '/notifications') navigateTo('notifications');
+    // 2. Initial Deep Link Parsing (On Mount)
+    const initPath = window.location.pathname;
+
+    // If it's a Board URL: /:username/:workspace/:board
+
+
+    if (initPath === '/notifications') {
+      navigateTo('notifications');
+    }
+
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // 3. Deep Link Resolution (Depends on Boards Loading)
+  useEffect(() => {
+    // Only run if we are in 'loading' state effectively (or just check if we have boards and activePage is default)
+    // Actually, we can run this check whenever boards change, but strictly only ONCE per app load is safer to avoid overriding user navigation.
+    // Let's use a session-like flag or just check if valid URL matches current state.
+
+    if (isLoading) return; // Wait for data
+
+    const path = window.location.pathname;
+    const parts = path.split('/').filter(Boolean);
+
+    if (parts.length >= 3) {
+      const targetBoardSlug = parts[2];
+      // const targetWorkspaceSlug = parts[1]; // Verify workspace matches if needed
+
+      // Find board by fuzzy slug match
+      const matchedBoard = boards.find(b => slugify(b.title) === targetBoardSlug);
+
+      if (matchedBoard && matchedBoard.id !== activeBoardId) {
+        console.log('Deep Link: Found board', matchedBoard.title);
+        // We also need to set the active workspace?
+        // setActiveBoard will trigger workspace switch if configured?
+        // useBoardStore's setActiveBoard doesn't automatically switch activeWorkspaceId usually, 
+        // unless we built that. Let's check. 
+        // Looking at previous specificiations, we often need to switch both.
+        // But for now, setActiveBoard triggers the view.
+        useBoardStore.getState().setActiveBoard(matchedBoard.id);
+      }
+    }
+  }, [isLoading, boards]); // simplistic dependency
+
+  // 4. State -> URL Sync
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (activePage === 'home') {
+      if (window.location.pathname !== '/') {
+        window.history.pushState(null, '', '/');
+      }
+    } else if (activePage === 'notifications') {
+      if (window.location.pathname !== '/notifications') {
+        window.history.pushState(null, '', '/notifications');
+      }
+    } else if (activePage === 'board' && activeBoard) {
+      const workspace = useBoardStore.getState().workspaces.find(w => w.id === activeBoard.workspaceId);
+      const workspaceName = workspace ? slugify(workspace.title) : 'workspace';
+
+      const currentUser = useUserStore.getState().currentUser;
+      const username = currentUser ? slugify(currentUser.name) : 'u';
+
+      const boardName = slugify(activeBoard.title);
+
+      const newPath = `/${username}/${workspaceName}/${boardName}`;
+
+      if (window.location.pathname !== newPath) {
+        window.history.pushState(null, '', newPath);
+      }
+    }
+  }, [activePage, activeBoardId, activeBoard, isLoading]);
 
   useEffect(() => {
     if (activeWorkspaceId) {

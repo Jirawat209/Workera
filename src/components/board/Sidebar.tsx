@@ -1,8 +1,9 @@
 import { LayoutDashboard, Plus, Trash2, Home, ChevronDown, Search, LayoutGrid, MoreHorizontal, Edit2, Copy, GripVertical, ChevronRight, Users } from 'lucide-react';
 import { useBoardStore } from '../../store/useBoardStore';
+import { useUserStore } from '../../store/useUserStore';
 
 import { usePermission } from '../../hooks/usePermission';
-import { useAuth } from '../../contexts/AuthContext';
+// import { useAuth } from '../../contexts/AuthContext';
 import { clsx } from 'clsx';
 import { useState, useEffect } from 'react';
 import { ConfirmModal } from '../ui/ConfirmModal';
@@ -115,7 +116,7 @@ const SortableBoardItem = ({
 export const Sidebar = () => {
     const {
         boards, activeBoardId, addBoard, setActiveBoard, deleteBoard, updateBoardTitle, moveBoard, duplicateBoardToWorkspace, moveBoardToWorkspace,
-        workspaces, activeWorkspaceId, setActiveWorkspace, addWorkspace, deleteWorkspace, duplicateWorkspace, renameWorkspace, sharedBoardIds
+        workspaces, activeWorkspaceId, setActiveWorkspace, addWorkspace, deleteWorkspace, duplicateWorkspace, renameWorkspace, sharedBoardIds, navigateTo
     } = useBoardStore();
 
     const [isCreating, setIsCreating] = useState(false);
@@ -152,9 +153,12 @@ export const Sidebar = () => {
 
 
     // Permission Debug
-    // const { currentUser, setRole } = useUserStore();
+    const { currentUser } = useUserStore();
     const { can } = usePermission();
-    const { user } = useAuth();
+    // const { user } = useAuth(); // useAuth provides Supabase user, not our App user with system_role
+
+    // Use currentUser from store which has system_role
+    const user = currentUser;
 
     // Filter workspaces based on active tab
     const filteredWorkspaces = activeTab === 'my-workspaces'
@@ -229,7 +233,7 @@ export const Sidebar = () => {
         <aside className="sidebar">
             <div className="sidebar-header" style={{ padding: '0 16px', marginBottom: '12px', width: '100%', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <div
-                    onClick={() => setActiveBoard(null)}
+                    onClick={() => navigateTo('home')}
                     style={{
                         marginBottom: '16px',
                         marginTop: '12px',
@@ -257,6 +261,35 @@ export const Sidebar = () => {
                 </div>
 
 
+
+                {/* Admin Link (Only for System Admins) */}
+                {(user?.system_role === 'super_admin' || user?.system_role === 'it_admin') && (
+                    <div style={{ padding: '0 4px', marginBottom: '8px' }}>
+                        <button
+                            onClick={() => navigateTo('admin')}
+                            style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: '1px solid #6366f1',
+                                borderRadius: '4px',
+                                backgroundColor: '#e0e7ff',
+                                color: '#4338ca',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 1px 2px rgba(99, 102, 241, 0.1)'
+                            }}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            <span>Admin Console</span>
+                        </button>
+                    </div>
+                )}
 
                 {/* Tab Switcher */}
                 <div style={{

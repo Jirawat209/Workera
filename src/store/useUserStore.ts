@@ -12,7 +12,8 @@ const DEFAULT_USER: User = {
     id: 'u1',
     name: 'Demo User',
     avatar: 'DU',
-    role: 'owner' // Default to highest permission
+    role: 'owner', // Default to highest permission
+    system_role: 'user'
 };
 
 export const useUserStore = create<UserState>()(
