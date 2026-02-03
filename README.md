@@ -1,73 +1,202 @@
-# React + TypeScript + Vite
+# Workera - Work Management Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, collaborative work management platform inspired by Monday.com, built with React, TypeScript, and Supabase.
 
-Currently, two official plugins are available:
+## 🌟 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Core Functionality
+- **📋 Board Management** - Create and manage multiple boards with customizable columns
+- **✅ Task Management** - Create, assign, and track tasks with rich details
+- **👥 User Management** - Comprehensive user administration with role-based access
+- **💼 Workspace Organization** - Organize projects into workspaces
+- **🔔 Real-time Notifications** - Stay updated with @mentions and activity
+- **📊 Activity Logs** - Track all system activities and changes
 
-## React Compiler
+### Admin Features
+- **Super Admin Dashboard** - Complete system oversight
+- **IT Admin Controls** - Workspace and user management
+- **Role Management** - Flexible role assignment (Super Admin, IT Admin, User)
+- **User Analytics** - Track active users and workspaces
+- **Activity Monitoring** - View all system events in real-time
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### User Experience
+- **@Mentions** - Tag users in comments and tasks
+- **Real-time Updates** - Instant synchronization across all users
+- **Responsive Design** - Works seamlessly on desktop and mobile
+- **Intuitive UI** - Clean, modern interface inspired by industry leaders
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Frontend:** React 18 + TypeScript + Vite
+- **Backend:** Supabase (PostgreSQL + Auth + Realtime)
+- **Styling:** Vanilla CSS with modern design patterns
+- **Icons:** Lucide React
+- **State Management:** React Hooks + Supabase Realtime
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 📋 Prerequisites
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Node.js 18+ and npm
+- Supabase account
+- Git
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🚀 Quick Start
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Jirawat209/Workera.git
+cd Workera
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Install Dependencies
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
+
+### 3. Environment Setup
+
+Create a `.env` file in the root directory:
+
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 4. Database Setup
+
+Run the following SQL scripts in your Supabase SQL Editor **in this order**:
+
+1. `activity_logs_schema.sql` - Activity logging system
+2. `delete_user_function.sql` - User deletion with logging
+3. `trigger_user_signup_log.sql` - Auto-log user signups
+4. `trigger_workspace_board_logs.sql` - Auto-log workspace/board creation
+5. Other policy files as needed for RLS
+
+**Note:** SQL scripts are located in the `/brain/` folder of this repository.
+
+### 5. Run Development Server
+
+```bash
+npm run dev
+```
+
+Visit `http://localhost:5173` to see the application.
+
+## 📦 Build for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist/` directory.
+
+## 🔐 User Roles
+
+### Super Admin
+- Full system access
+- Manage all users and roles
+- Delete users
+- View all activity logs
+- Access admin console
+
+### IT Admin
+- Manage workspaces
+- View user list
+- View activity logs
+- Cannot modify Super Admins
+
+### User
+- Create and manage own workspaces
+- Create boards and tasks
+- Collaborate with team members
+- Receive notifications
+
+## 📊 Activity Logging
+
+The system automatically logs:
+- ✅ User signups
+- ✅ Role changes
+- ✅ User deletions
+- ✅ Workspace creation
+- ✅ Board creation
+
+All logs are visible in the Admin Console with human-readable descriptions.
+
+## 🎨 Key Features Detail
+
+### Smart Action Buttons
+- Hidden for own account
+- Disabled (grayed) for higher-role users
+- Enabled for lower-role users
+
+### Popover Menus
+- Smart positioning (opens upward near bottom of screen)
+- Prevents viewport clipping
+- Context-aware actions
+
+### Real-time Collaboration
+- @Mention notifications
+- Live updates across all users
+- Instant synchronization
+
+## 📁 Project Structure
+
+```
+Workera/
+├── src/
+│   ├── components/
+│   │   ├── admin/          # Admin console components
+│   │   ├── board/          # Board and task components
+│   │   └── ...
+│   ├── lib/
+│   │   └── supabase.ts     # Supabase client
+│   ├── App.tsx             # Main app component
+│   └── main.tsx            # Entry point
+├── brain/                  # SQL scripts and documentation
+├── public/                 # Static assets
+└── package.json
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is private and proprietary.
+
+## 👥 Team
+
+Developed by Jirawat Kongka and team at Nara Hospitality.
+
+## 📞 Support
+
+For issues and questions:
+- Create an issue in the GitHub repository
+- Contact the development team
+
+## 🚀 Deployment
+
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed deployment instructions including:
+- Vercel deployment
+- Netlify deployment
+- GitHub Pages
+- Team sharing options
+
+## 🔄 Recent Updates
+
+- ✅ Smart action button visibility logic
+- ✅ Improved popover positioning
+- ✅ Human-readable activity logs
+- ✅ Complete activity logging system
+- ✅ Role-based access control
+- ✅ @Mention system with notifications
+
+---
+
+**Built with ❤️ using React, TypeScript, and Supabase**
