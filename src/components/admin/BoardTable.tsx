@@ -24,21 +24,21 @@ export const BoardTable = () => {
         setLoading(true);
         setError(null);
         try {
-            // Fetch boards with owner and workspace info
+            // Fetch boards with workspace and owner info (owner comes from workspace)
             const { data, error: fetchError } = await supabase
                 .from('boards')
                 .select(`
                     id,
                     title,
                     created_at,
-                    owner_id,
                     workspace_id,
-                    profiles!boards_owner_id_fkey (
-                        full_name,
-                        email
-                    ),
                     workspaces!boards_workspace_id_fkey (
-                        title
+                        title,
+                        owner_id,
+                        profiles!workspaces_owner_id_fkey (
+                            full_name,
+                            email
+                        )
                     )
                 `)
                 .order('created_at', { ascending: false });
@@ -49,10 +49,10 @@ export const BoardTable = () => {
                 id: board.id,
                 title: board.title,
                 created_at: board.created_at,
-                owner_id: board.owner_id,
+                owner_id: board.workspaces?.owner_id || '',
                 workspace_id: board.workspace_id,
-                owner_name: board.profiles?.full_name || 'Unknown',
-                owner_email: board.profiles?.email || 'N/A',
+                owner_name: board.workspaces?.profiles?.full_name || 'Unknown',
+                owner_email: board.workspaces?.profiles?.email || 'N/A',
                 workspace_title: board.workspaces?.title || 'Unknown Workspace'
             }));
 
