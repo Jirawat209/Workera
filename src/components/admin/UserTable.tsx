@@ -163,7 +163,7 @@ export const UserTable = () => {
             </div>
 
             {/* Table */}
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflow: 'visible' }}>
                 {isLoading ? (
                     <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
                 ) : (
@@ -236,7 +236,7 @@ export const UserTable = () => {
                                                             border: '1px solid #e2e8f0',
                                                             borderRadius: '8px',
                                                             boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
-                                                            zIndex: 1000,
+                                                            zIndex: 9999,
                                                             minWidth: '200px',
                                                             overflow: 'hidden'
                                                         }}
