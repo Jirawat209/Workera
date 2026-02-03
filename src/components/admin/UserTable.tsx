@@ -207,114 +207,72 @@ export const UserTable = () => {
                                         {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : '-'}
                                     </td>
                                     <td style={{ padding: '12px 24px', position: 'relative' }}>
-                                        {currentUser.system_role === 'super_admin' && (
-                                            <>
-                                                <button
-                                                    onClick={(e) => {
-                                                        if (openPopoverId === profile.id) {
-                                                            setOpenPopoverId(null);
-                                                        } else {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            const spaceBelow = window.innerHeight - rect.bottom;
-                                                            const spaceAbove = rect.top;
+                                        {(() => {
+                                            // Don't show button for current user's own account
+                                            if (profile.id === currentUser.id) {
+                                                return null;
+                                            }
 
-                                                            // If less than 250px space below, open upward
-                                                            setPopoverOpenUpward(spaceBelow < 250 && spaceAbove > spaceBelow);
-                                                            setOpenPopoverId(profile.id);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        border: 'none',
-                                                        background: 'transparent',
-                                                        cursor: 'pointer',
-                                                        padding: '4px',
-                                                        borderRadius: '4px',
-                                                        display: 'flex',
-                                                        alignItems: 'center'
-                                                    }}
-                                                >
-                                                    <MoreHorizontal size={16} color="#94a3b8" />
-                                                </button>
+                                            const currentRoleLevel = ROLE_HIERARCHY[currentUser.system_role as keyof typeof ROLE_HIERARCHY] || 0;
+                                            const targetRoleLevel = ROLE_HIERARCHY[profile.system_role as keyof typeof ROLE_HIERARCHY] || 0;
+                                            const canModify = currentRoleLevel > targetRoleLevel;
+                                            const isDisabled = currentRoleLevel < targetRoleLevel;
 
-                                                {/* Popover Menu */}
-                                                {openPopoverId === profile.id && (
-                                                    <div
-                                                        ref={popoverRef}
+                                            return (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            if (isDisabled) return;
+
+                                                            if (openPopoverId === profile.id) {
+                                                                setOpenPopoverId(null);
+                                                            } else {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                const spaceBelow = window.innerHeight - rect.bottom;
+                                                                const spaceAbove = rect.top;
+
+                                                                // If less than 250px space below, open upward
+                                                                setPopoverOpenUpward(spaceBelow < 250 && spaceAbove > spaceBelow);
+                                                                setOpenPopoverId(profile.id);
+                                                            }
+                                                        }}
+                                                        disabled={isDisabled}
                                                         style={{
-                                                            position: 'absolute',
-                                                            ...(popoverOpenUpward ? { bottom: '100%', marginBottom: '4px' } : { top: '100%', marginTop: '4px' }),
-                                                            right: '0',
-                                                            backgroundColor: 'white',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px',
-                                                            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
-                                                            zIndex: 9999,
-                                                            minWidth: '200px',
-                                                            overflow: 'hidden'
+                                                            border: 'none',
+                                                            background: 'transparent',
+                                                            cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                                            padding: '4px',
+                                                            borderRadius: '4px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            opacity: isDisabled ? 0.4 : 1
                                                         }}
                                                     >
-                                                        {/* Change Role */}
-                                                        {canModifyUser(profile.system_role) && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setRoleChangeModal({ userId: profile.id, currentRole: profile.system_role });
-                                                                    setOpenPopoverId(null);
-                                                                }}
-                                                                style={{
-                                                                    width: '100%',
-                                                                    padding: '10px 16px',
-                                                                    border: 'none',
-                                                                    background: 'transparent',
-                                                                    textAlign: 'left',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '10px',
-                                                                    fontSize: '14px',
-                                                                    color: '#0f172a',
-                                                                    transition: 'background-color 0.15s'
-                                                                }}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                            >
-                                                                <Edit3 size={16} color="#64748b" />
-                                                                Change Role
-                                                            </button>
-                                                        )}
+                                                        <MoreHorizontal size={16} color={isDisabled ? '#cbd5e1' : '#94a3b8'} />
+                                                    </button>
 
-                                                        {/* Promote to Super Admin */}
-                                                        {profile.system_role !== 'super_admin' && (
-                                                            <button
-                                                                onClick={() => handleRoleUpdate(profile.id, 'super_admin')}
-                                                                style={{
-                                                                    width: '100%',
-                                                                    padding: '10px 16px',
-                                                                    border: 'none',
-                                                                    background: 'transparent',
-                                                                    textAlign: 'left',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '10px',
-                                                                    fontSize: '14px',
-                                                                    color: '#0f172a',
-                                                                    transition: 'background-color 0.15s'
-                                                                }}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                            >
-                                                                <Shield size={16} color="#6366f1" />
-                                                                Promote to Super Admin
-                                                            </button>
-                                                        )}
-
-                                                        {/* Delete */}
-                                                        {canModifyUser(profile.system_role) && (
-                                                            <>
-                                                                <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '4px 0' }} />
+                                                    {/* Popover Menu */}
+                                                    {openPopoverId === profile.id && canModify && (
+                                                        <div
+                                                            ref={popoverRef}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                ...(popoverOpenUpward ? { bottom: '100%', marginBottom: '4px' } : { top: '100%', marginTop: '4px' }),
+                                                                right: '0',
+                                                                backgroundColor: 'white',
+                                                                border: '1px solid #e2e8f0',
+                                                                borderRadius: '8px',
+                                                                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+                                                                zIndex: 9999,
+                                                                minWidth: '200px',
+                                                                overflow: 'hidden'
+                                                            }}
+                                                        >
+                                                            {/* Change Role */}
+                                                            {canModifyUser(profile.system_role) && (
                                                                 <button
                                                                     onClick={() => {
-                                                                        setDeleteConfirmId(profile.id);
+                                                                        setRoleChangeModal({ userId: profile.id, currentRole: profile.system_role });
                                                                         setOpenPopoverId(null);
                                                                     }}
                                                                     style={{
@@ -328,21 +286,79 @@ export const UserTable = () => {
                                                                         alignItems: 'center',
                                                                         gap: '10px',
                                                                         fontSize: '14px',
-                                                                        color: '#dc2626',
+                                                                        color: '#0f172a',
                                                                         transition: 'background-color 0.15s'
                                                                     }}
-                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                                                                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                                                 >
-                                                                    <Trash2 size={16} />
-                                                                    Delete User
+                                                                    <Edit3 size={16} color="#64748b" />
+                                                                    Change Role
                                                                 </button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
+                                                            )}
+
+                                                            {/* Promote to Super Admin */}
+                                                            {currentUser.system_role === 'super_admin' && profile.system_role !== 'super_admin' && (
+                                                                <button
+                                                                    onClick={() => handleRoleUpdate(profile.id, 'super_admin')}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        padding: '10px 16px',
+                                                                        border: 'none',
+                                                                        background: 'transparent',
+                                                                        textAlign: 'left',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '10px',
+                                                                        fontSize: '14px',
+                                                                        color: '#0f172a',
+                                                                        transition: 'background-color 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                >
+                                                                    <Shield size={16} color="#6366f1" />
+                                                                    Promote to Super Admin
+                                                                </button>
+                                                            )}
+
+                                                            {/* Delete */}
+                                                            {canModifyUser(profile.system_role) && (
+                                                                <>
+                                                                    <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '4px 0' }} />
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setDeleteConfirmId(profile.id);
+                                                                            setOpenPopoverId(null);
+                                                                        }}
+                                                                        style={{
+                                                                            width: '100%',
+                                                                            padding: '10px 16px',
+                                                                            border: 'none',
+                                                                            background: 'transparent',
+                                                                            textAlign: 'left',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '10px',
+                                                                            fontSize: '14px',
+                                                                            color: '#dc2626',
+                                                                            transition: 'background-color 0.15s'
+                                                                        }}
+                                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                    >
+                                                                        <Trash2 size={16} />
+                                                                        Delete User
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </td>
                                 </tr>
                             ))}
