@@ -31,7 +31,9 @@ export const UserTable = () => {
 
     // Popover State
     const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+    const [popoverPosition, setPopoverPosition] = useState<{ top?: number; bottom?: number }>({});
     const popoverRef = useRef<HTMLDivElement>(null);
+    const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
     // Delete Confirmation State
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -209,7 +211,24 @@ export const UserTable = () => {
                                         {currentUser.system_role === 'super_admin' && (
                                             <>
                                                 <button
-                                                    onClick={() => setOpenPopoverId(openPopoverId === profile.id ? null : profile.id)}
+                                                    ref={(el) => { buttonRefs.current[profile.id] = el; }}
+                                                    onClick={(e) => {
+                                                        if (openPopoverId === profile.id) {
+                                                            setOpenPopoverId(null);
+                                                        } else {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            const spaceBelow = window.innerHeight - rect.bottom;
+                                                            const spaceAbove = rect.top;
+
+                                                            // If less than 250px space below, open upward
+                                                            if (spaceBelow < 250 && spaceAbove > spaceBelow) {
+                                                                setPopoverPosition({ bottom: window.innerHeight - rect.top + 4 });
+                                                            } else {
+                                                                setPopoverPosition({ top: rect.bottom + 4 });
+                                                            }
+                                                            setOpenPopoverId(profile.id);
+                                                        }
+                                                    }}
                                                     style={{
                                                         border: 'none',
                                                         background: 'transparent',
@@ -228,14 +247,14 @@ export const UserTable = () => {
                                                     <div
                                                         ref={popoverRef}
                                                         style={{
-                                                            position: 'absolute',
-                                                            top: '100%',
-                                                            right: '0',
-                                                            marginTop: '4px',
+                                                            position: 'fixed',
+                                                            top: popoverPosition.top,
+                                                            bottom: popoverPosition.bottom,
+                                                            right: '24px',
                                                             backgroundColor: 'white',
                                                             border: '1px solid #e2e8f0',
                                                             borderRadius: '8px',
-                                                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+                                                            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
                                                             zIndex: 9999,
                                                             minWidth: '200px',
                                                             overflow: 'hidden'
