@@ -131,6 +131,10 @@ interface BoardState {
     dismissNotification: (id: string) => Promise<void>;
     handleAcceptInvite: (notification: Notification) => Promise<void>;
     handleDeclineInvite: (notification: Notification) => Promise<void>;
+
+    // Drafts
+    drafts: Record<string, string>;
+    setDraft: (itemId: string, text: string) => void;
 }
 
 
@@ -138,6 +142,9 @@ interface BoardState {
 export const useBoardStore = create<BoardState>((set, get) => ({
     boards: [],
     workspaces: [],
+    drafts: {},
+    setDraft: (itemId, text) => set(state => ({ drafts: { ...state.drafts, [itemId]: text } })),
+
     sharedBoardIds: [],
     sharedWorkspaceIds: [],
     activeBoardMembers: [], // Initialize empty
@@ -398,14 +405,28 @@ export const useBoardStore = create<BoardState>((set, get) => ({
             });
 
             // Determine Active Workspace
-            const lastWorkspaceId = localStorage.getItem('lastActiveWorkspaceId');
-            const validWorkspace = workspaces.find(w => w.id === lastWorkspaceId);
-            const activeWorkspaceId = validWorkspace ? validWorkspace.id : (workspaces[0]?.id || '');
+            const currentWorkspaceId = get().activeWorkspaceId;
+            const validCurrentWorkspace = workspaces.find(w => w.id === currentWorkspaceId);
+
+            let activeWorkspaceId = validCurrentWorkspace ? validCurrentWorkspace.id : '';
+            if (!activeWorkspaceId) {
+                // Fallback to localStorage (Initial Load)
+                const lastWorkspaceId = localStorage.getItem('lastActiveWorkspaceId');
+                const validWorkspace = workspaces.find(w => w.id === lastWorkspaceId);
+                activeWorkspaceId = validWorkspace ? validWorkspace.id : (workspaces[0]?.id || '');
+            }
 
             // Determine Active Board
-            const lastBoardId = localStorage.getItem('lastActiveBoardId');
-            const validBoard = fullBoards.find(b => b.id === lastBoardId);
-            const activeBoardId = validBoard ? validBoard.id : null;
+            const currentBoardId = get().activeBoardId;
+            const validCurrentBoard = fullBoards.find(b => b.id === currentBoardId);
+
+            let activeBoardId = validCurrentBoard ? validCurrentBoard.id : null;
+            if (!activeBoardId) {
+                // Fallback to localStorage (Initial Load)
+                const lastBoardId = localStorage.getItem('lastActiveBoardId');
+                const validBoard = fullBoards.find(b => b.id === lastBoardId);
+                activeBoardId = validBoard ? validBoard.id : null;
+            }
 
             set({
                 workspaces: workspaces.map(w => ({ id: w.id, title: w.title, order: w.order, owner_id: w.owner_id })),
@@ -1494,7 +1515,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
             return;
         }
 
-        console.log('[Realtime] Initializing subscription for workspace:', activeWorkspaceId);
+        console.log('[Realtime] Initializing granular subscription for workspace:', activeWorkspaceId);
 
         // Clean up existing
         if (get().realtimeSubscription) supabase.removeChannel(get().realtimeSubscription as any);
@@ -1503,23 +1524,148 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
         const channel = supabase.channel(`workspace_updates:${activeWorkspaceId}`);
 
-        // Update store with channel ref (if we added state for it) - skipping for now to keep interface clean
+        // Helper to update store safely
+        const updateStore = (updater: (state: BoardState) => Partial<BoardState>) => set(updater);
 
         channel
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, () => get().loadUserData(true))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, () => get().loadUserData(true))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'columns' }, () => get().loadUserData(true))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, () => get().loadUserData(true))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, (_payload) => {
+                // For Boards, strictly safer to reload for now as Structure/Order impacts Sidebar heavily
+                get().loadUserData(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, (payload) => {
+                const { eventType, new: newRecord, old: oldRecord } = payload;
+                updateStore(state => {
+                    const n = newRecord as any;
+                    const o = oldRecord as any;
+                    const boardId = n?.board_id || o?.board_id;
+                    const boardIndex = state.boards.findIndex(b => b.id === boardId);
+                    if (boardIndex === -1 && state.activeBoardId !== boardId) return {};
+
+                    const newBoards = [...state.boards];
+                    // If board not found via findIndex but might be active? (Unlikely)
+                    if (boardIndex === -1) return {};
+
+                    const board = { ...newBoards[boardIndex] };
+                    let groups = [...(board.groups || [])];
+
+                    if (eventType === 'INSERT') {
+                        if (!groups.find(g => g.id === newRecord.id)) {
+                            groups.push({
+                                id: newRecord.id,
+                                title: newRecord.title,
+                                color: newRecord.color,
+                                order: newRecord.order,
+                                items: []
+                            });
+                            groups.sort((a, b) => (a.order || 0) - (b.order || 0));
+                        }
+                    } else if (eventType === 'UPDATE') {
+                        groups = groups.map(g => g.id === newRecord.id ? { ...g, title: newRecord.title, color: newRecord.color, order: newRecord.order } : g);
+                        groups.sort((a, b) => (a.order || 0) - (b.order || 0));
+                    } else if (eventType === 'DELETE') {
+                        groups = groups.filter(g => g.id !== oldRecord.id);
+                    }
+
+                    board.groups = groups;
+                    newBoards[boardIndex] = board;
+                    return { boards: newBoards };
+                });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'columns' }, (_payload) => {
+                // Columns are tricky due to options parsing. Reloading is safest.
+                get().loadUserData(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, (payload) => {
+                const { eventType, new: newRecord, old: oldRecord } = payload;
+                updateStore(state => {
+                    const n = newRecord as any;
+                    const o = oldRecord as any;
+                    const boardId = n?.board_id || o?.board_id;
+                    const boardIndex = state.boards.findIndex(b => b.id === boardId);
+                    if (boardIndex === -1) return {};
+
+                    const newBoards = [...state.boards];
+                    const board = { ...newBoards[boardIndex] };
+                    let items = [...(board.items || [])];
+                    let groups = [...(board.groups || [])];
+
+                    if (eventType === 'INSERT') {
+                        if (!items.find(i => i.id === newRecord.id)) {
+                            const newItem = {
+                                id: newRecord.id,
+                                title: newRecord.title,
+                                groupId: newRecord.group_id,
+                                boardId: newRecord.board_id,
+                                values: newRecord.values || {},
+                                order: newRecord.order,
+                                updates: [],
+                                isHidden: newRecord.is_hidden
+                            };
+                            items.push(newItem);
+
+                            groups = groups.map(g => {
+                                if (g.id === newRecord.group_id) {
+                                    return {
+                                        ...g,
+                                        items: [...g.items, newItem].sort((a, b) => (a.order || 0) - (b.order || 0))
+                                    };
+                                }
+                                return g;
+                            });
+                        }
+                    } else if (eventType === 'UPDATE') {
+                        items = items.map(i => i.id === newRecord.id ? {
+                            ...i,
+                            title: newRecord.title,
+                            values: newRecord.values || {},
+                            order: newRecord.order,
+                            isHidden: newRecord.is_hidden,
+                            groupId: newRecord.group_id
+                        } : i);
+
+                        groups = groups.map(g => {
+                            let gItems = g.items.filter(i => i.id !== newRecord.id);
+                            if (g.id === newRecord.group_id) {
+                                const exist = items.find(i => i.id === newRecord.id);
+                                // Recover existing 'updates' if available
+                                const newItem = {
+                                    id: newRecord.id,
+                                    title: newRecord.title,
+                                    groupId: newRecord.group_id,
+                                    boardId: newRecord.board_id,
+                                    values: newRecord.values || {},
+                                    order: newRecord.order,
+                                    updates: exist?.updates || [],
+                                    isHidden: newRecord.is_hidden
+                                };
+                                gItems.push(newItem);
+                                gItems.sort((a, b) => (a.order || 0) - (b.order || 0));
+                            }
+                            return { ...g, items: gItems };
+                        });
+
+                    } else if (eventType === 'DELETE') {
+                        items = items.filter(i => i.id !== oldRecord.id);
+                        groups = groups.map(g => ({
+                            ...g,
+                            items: g.items.filter(i => i.id !== oldRecord.id)
+                        }));
+                    }
+
+                    board.items = items;
+                    board.groups = groups;
+                    newBoards[boardIndex] = board;
+                    return { boards: newBoards };
+                });
+            })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
-                console.log('[Realtime] Notification received, reloading data...');
                 get().loadUserData(true);
             })
             .subscribe((status) => {
                 console.log('[Realtime] Subscription status:', status);
 
                 if (status === 'SUBSCRIBED') {
-                    console.log('[Realtime] ✅ Connected to Workspace updates');
-                    // Stop polling if we managed to connect
+                    console.log('[Realtime] ✅ Connected to Granular Workspace updates');
                     if ((get() as any).pollingInterval) {
                         clearInterval((get() as any).pollingInterval);
                         set({ pollingInterval: null } as any);
@@ -1528,21 +1674,19 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                     console.error(`[Realtime] ❌ Connection issue (${status}). Starting Polling Fallback.`);
-
-                    // Start Polling if not already running
                     if (!(get() as any).pollingInterval) {
                         console.log('[Realtime] 🔄 Fallback Polling activated (10s interval)');
                         const interval = setInterval(() => {
                             console.log('[Polling] Fetching latest data...');
                             get().loadUserData(true);
                         }, 10000);
-
-                        // Hacky: Store interval in state (need to add type to interface strictly, but for now runtime works)
-                        // Ideally we add `pollingInterval: NodeJS.Timeout | null` to BoardState
                         set({ pollingInterval: interval } as any);
                     }
                 }
             });
+
+        // Fix: Actually store the subscription for cleanup
+        set({ realtimeSubscription: channel } as any);
     },
 
     unsubscribeFromRealtime: () => {

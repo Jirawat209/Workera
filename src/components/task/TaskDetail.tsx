@@ -11,21 +11,41 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
     const addUpdate = useBoardStore(state => state.addUpdate);
     const deleteUpdate = useBoardStore(state => state.deleteUpdate);
     const updateItemTitle = useBoardStore(state => state.updateItemTitle);
+
+    // Global Draft State (Persistence)
+    const draftText = useBoardStore(state => state.drafts[itemId] || '');
+    const setDraft = useBoardStore(state => state.setDraft);
+
     const { currentUser } = useUserStore();
 
     const [activeTab, setActiveTab] = useState<'updates' | 'files' | 'activity'>('updates');
-    const [updateText, setUpdateText] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-    if (!activeItem) return null;
+    // FIX: Keep component mounted when reloading data to preserve typed text
+    if (!activeItem) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '32px', alignItems: 'center', justifyContent: 'center', color: '#888' }}>
+                <div style={{
+                    width: '24px',
+                    height: '24px',
+                    border: '3px solid #f3f3f3',
+                    borderTop: '3px solid #3498db',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                }}></div>
+                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                <p style={{ marginTop: '16px', fontSize: '14px' }}>Loading item...</p>
+            </div>
+        );
+    }
 
     const handleSendUpdate = () => {
         // Strip HTML tags to check if empty
-        const textOnly = updateText.replace(/<[^>]*>/g, '').trim();
-        if (!textOnly && !updateText.includes('<img')) return;
+        const textOnly = draftText.replace(/<[^>]*>/g, '').trim();
+        if (!textOnly && !draftText.includes('<img')) return;
 
-        addUpdate(itemId, updateText, { name: currentUser.name, id: currentUser.id });
-        setUpdateText('');
+        addUpdate(itemId, draftText, { name: currentUser.name, id: currentUser.id });
+        setDraft(itemId, ''); // Clear global draft
     };
 
     const handleDeleteClick = (updateId: string) => {
@@ -146,8 +166,8 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                         {/* Input Area (New WYSIWYG) */}
                         <div style={{ marginBottom: '32px' }}>
                             <RichTextEditor
-                                value={updateText}
-                                onChange={setUpdateText}
+                                value={draftText}
+                                onChange={(val) => setDraft(itemId, val)}
                             />
                             <div style={{
                                 marginTop: '12px',
