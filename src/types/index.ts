@@ -31,6 +31,7 @@ export interface Group {
     title: string;
     color: string;
     items: Item[];
+    order?: number;
 }
 
 
@@ -51,6 +52,7 @@ export interface Item {
     values: ItemValue;
     updates?: Comment[]; // For Task Sidebar
     isHidden?: boolean;
+    order?: number;
 }
 
 export interface SortState {

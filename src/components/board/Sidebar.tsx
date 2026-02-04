@@ -1,4 +1,4 @@
-import { LayoutDashboard, Plus, Trash2, Home, ChevronDown, Search, LayoutGrid, MoreHorizontal, Edit2, Copy, GripVertical, ChevronRight, Users } from 'lucide-react';
+import { LayoutDashboard, Plus, Trash2, Search, LayoutGrid, MoreHorizontal, Edit2, Copy, GripVertical, ChevronRight, Users } from 'lucide-react';
 import { useBoardStore } from '../../store/useBoardStore';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -6,6 +6,7 @@ import { usePermission } from '../../hooks/usePermission';
 // import { useAuth } from '../../contexts/AuthContext';
 import { clsx } from 'clsx';
 import { useState, useEffect } from 'react';
+import '../../styles/sidebar_tree.css';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { ShareWorkspaceModal } from '../workspace/ShareWorkspaceModal';
 import {
@@ -25,6 +26,50 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+const BoardIcon = ({ size = 16, className = "", style = {} }: { size?: number, className?: string, style?: React.CSSProperties }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        style={style}
+    >
+        <rect x="3" y="3" width="18" height="18" rx="1.5" />
+        <path d="M3 11h18" />
+        <path d="M9 3v8" />
+        <path d="M15 11v10" />
+    </svg>
+);
+
+const WorkspaceIcon = ({ title, isActive }: { title: string, isActive: boolean }) => {
+    const initial = title.trim().charAt(0).toUpperCase() || '?';
+    return (
+        <div style={{
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            backgroundColor: isActive ? '#0073ea' : '#e6e9ef',
+            color: isActive ? 'white' : '#676879',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '11px',
+            fontWeight: 700,
+            flexShrink: 0,
+            transition: 'all 0.2s',
+            position: 'relative',
+            zIndex: 2
+        }}>
+            {initial}
+        </div>
+    );
+};
+
 // Sortable Item Component
 const SortableBoardItem = ({
     board,
@@ -36,7 +81,8 @@ const SortableBoardItem = ({
     setEditTitle,
     handleRename,
     handleContextMenu,
-    can
+    can,
+    isLastChild
 }: any) => {
     const {
         attributes,
@@ -59,56 +105,60 @@ const SortableBoardItem = ({
         <div
             ref={setNodeRef}
             style={style}
-            className={clsx('sidebar-item', { active: activeBoardId === board.id })}
-            onClick={() => setActiveBoard(board.id)}
-            onDoubleClick={(e) => {
-                e.stopPropagation();
-                if (can('create_board')) {
-                    setEditingBoardId(board.id);
-                    setEditTitle(board.title);
-                }
-            }}
+            className={clsx('tree-node-leaf', { 'last-child': isLastChild })}
         >
             <div
-                {...attributes}
-                {...listeners}
-                style={{ marginRight: '8px', cursor: 'grab', color: '#ccc', display: 'flex', alignItems: 'center', outline: 'none' }}
-                onClick={(e) => e.stopPropagation()} // Prevent setting active board when clicking handle? Maybe okay.
+                className={clsx('tree-sidebar-item', { active: activeBoardId === board.id })}
+                onClick={() => setActiveBoard(board.id)}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (can('create_board')) {
+                        setEditingBoardId(board.id);
+                        setEditTitle(board.title);
+                    }
+                }}
             >
-                <GripVertical size={14} />
-            </div>
+                <div
+                    {...attributes}
+                    {...listeners}
+                    style={{ marginRight: '4px', cursor: 'grab', color: '#ccc', display: 'flex', alignItems: 'center', outline: 'none' }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <GripVertical size={12} />
+                </div>
 
-            <LayoutDashboard size={16} />
-            {
-                editingBoardId === board.id ? (
-                    <input
-                        autoFocus
-                        type="text"
-                        className="sidebar-item-input"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onBlur={() => handleRename(board.id)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleRename(board.id);
-                            if (e.key === 'Escape') setEditingBoardId(null);
+                <BoardIcon size={16} className="item-icon" />
+                {
+                    editingBoardId === board.id ? (
+                        <input
+                            autoFocus
+                            type="text"
+                            className="sidebar-item-input"
+                            style={{ margin: 0, padding: '2px 4px' }}
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onBlur={() => handleRename(board.id)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRename(board.id);
+                                if (e.key === 'Escape') setEditingBoardId(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    ) : (
+                        <span className="item-label">{board.title}</span>
+                    )
+                }
+
+                <div className="sidebar-item-action" onClick={(e) => e.stopPropagation()}>
+                    <MoreHorizontal
+                        size={14}
+                        onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            handleContextMenu(e, board.id, rect);
                         }}
-                        onClick={(e) => e.stopPropagation()}
                     />
-                ) : (
-                    <span className="sidebar-item-label">{board.title}</span>
-                )
-            }
-
-            {/* Board 3-Dot Menu */}
-            <div className="sidebar-item-action" onClick={(e) => e.stopPropagation()}>
-                <MoreHorizontal
-                    size={16}
-                    onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        handleContextMenu(e, board.id, rect);
-                    }}
-                />
-            </div>
+                </div>
+            </div >
         </div >
     );
 };
@@ -116,10 +166,10 @@ const SortableBoardItem = ({
 export const Sidebar = () => {
     const {
         boards, activeBoardId, addBoard, setActiveBoard, deleteBoard, updateBoardTitle, moveBoard, duplicateBoardToWorkspace, moveBoardToWorkspace,
-        workspaces, activeWorkspaceId, setActiveWorkspace, addWorkspace, deleteWorkspace, duplicateWorkspace, renameWorkspace, sharedBoardIds, navigateTo
+        workspaces, activeWorkspaceId, setActiveWorkspace, addWorkspace, deleteWorkspace, updateWorkspace, sharedBoardIds, sharedWorkspaceIds, navigateTo
     } = useBoardStore();
 
-    const [isCreating, setIsCreating] = useState(false);
+    const [creatingBoardInWorkspaceId, setCreatingBoardInWorkspaceId] = useState<string | null>(null);
     const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newBoardTitle, setNewBoardTitle] = useState('');
@@ -137,8 +187,6 @@ export const Sidebar = () => {
     const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
     const [editWorkspaceTitle, setEditWorkspaceTitle] = useState('');
 
-    const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
-
     // Context Menus
     const [activeBoardMenu, setActiveBoardMenu] = useState<string | null>(null);
     const [activeWorkspaceMenu, setActiveWorkspaceMenu] = useState<string | null>(null);
@@ -151,6 +199,32 @@ export const Sidebar = () => {
     // Share workspace modal
     const [shareWorkspaceId, setShareWorkspaceId] = useState<string | null>(null);
 
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+    const searchActive = searchQuery.trim().length > 0;
+
+    // Tree expansion state
+    const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<string>>(new Set([workspaces[0]?.id].filter(Boolean)));
+
+    const toggleWorkspace = (wsId: string) => {
+        const next = new Set(expandedWorkspaces);
+        if (next.has(wsId)) next.delete(wsId);
+        else next.add(wsId);
+        setExpandedWorkspaces(next);
+    };
+
+    // Auto-expand on search
+    useEffect(() => {
+        if (searchActive) {
+            const matches = filteredWorkspaces.map(ws => ws.id);
+            setExpandedWorkspaces(prev => {
+                const next = new Set(prev);
+                matches.forEach(id => next.add(id));
+                return next;
+            });
+        }
+    }, [searchQuery, searchActive]);
+
 
     // Permission Debug
     const { currentUser } = useUserStore();
@@ -160,22 +234,29 @@ export const Sidebar = () => {
     // Use currentUser from store which has system_role
     const user = currentUser;
 
-    // Filter workspaces based on active tab
-    const filteredWorkspaces = activeTab === 'my-workspaces'
+    // Filter workspaces based on active tab and search query
+    const filteredWorkspaces = (activeTab === 'my-workspaces'
         ? workspaces.filter(w => w.owner_id === user?.id)
-        : workspaces.filter(w => w.owner_id !== user?.id);
-
-    const activeWorkspace = filteredWorkspaces.find(w => w.id === activeWorkspaceId) || filteredWorkspaces[0];
-
-    // Filter boards based on Tab
-    const filteredBoards = activeTab === 'shared'
-        ? boards.filter(b => {
-            const isShared = sharedBoardIds.includes(b.id);
-            const workspace = workspaces.find(w => w.id === b.workspaceId);
-            // Show in Shared ONLY if I am NOT the workspace owner (avoid duplication)
-            return isShared && workspace?.owner_id !== user?.id;
+        : workspaces.filter(w => {
+            if (w.owner_id === user?.id) return false;
+            const isWorkspaceShared = sharedWorkspaceIds.includes(w.id);
+            const containsSharedBoard = boards.some(b => b.workspaceId === w.id && sharedBoardIds.includes(b.id));
+            return isWorkspaceShared || containsSharedBoard;
         })
-        : boards.filter(b => b.workspaceId === activeWorkspace?.id); // Safe check activeWorkspace existence
+    ).filter(w => {
+        if (!searchQuery.trim()) return true;
+        const wsMatch = w.title.toLowerCase().includes(searchQuery.toLowerCase());
+        const boardMatch = boards.some(b => b.workspaceId === w.id && b.title.toLowerCase().includes(searchQuery.toLowerCase()));
+        return wsMatch || boardMatch;
+    });
+
+    const allAccessibleWorkspaces = workspaces.filter((w, index, self) => {
+        const isAccessible = w.owner_id === user?.id ||
+            sharedWorkspaceIds.includes(w.id) ||
+            boards.some(b => b.workspaceId === w.id && sharedBoardIds.includes(b.id));
+
+        return isAccessible && self.findIndex(i => i.id === w.id) === index;
+    });
 
     // Close menus on outside click
     useEffect(() => {
@@ -210,9 +291,9 @@ export const Sidebar = () => {
         setEditingBoardId(null);
     };
 
-    const handleRenameWorkspace = (workspaceId: string) => {
+    const handleRenameWorkspace = (wsId: string) => {
         if (editWorkspaceTitle.trim()) {
-            renameWorkspace(workspaceId, editWorkspaceTitle);
+            updateWorkspace(wsId, editWorkspaceTitle);
         }
         setEditingWorkspaceId(null);
     };
@@ -291,31 +372,26 @@ export const Sidebar = () => {
                     </div>
                 )}
 
-                {/* Tab Switcher */}
+                {/* Tab Switcher - Simple Buttons */}
                 <div style={{
                     display: 'flex',
-                    gap: '4px',
-                    padding: '4px',
-                    backgroundColor: '#f6f7fb',
-                    borderRadius: '6px',
-                    marginBottom: '12px',
-                    width: '100%'
+                    padding: '0 4px',
+                    marginBottom: '16px',
+                    width: '100%',
+                    borderBottom: '1px solid #f0f0f0'
                 }}>
                     <button
                         onClick={() => setActiveTab('my-workspaces')}
                         style={{
-                            flex: 1,
                             padding: '8px 12px',
                             border: 'none',
-                            borderRadius: '4px',
-                            backgroundColor: activeTab === 'my-workspaces' ? 'white' : 'transparent',
-                            color: activeTab === 'my-workspaces' ? '#323338' : '#676879',
+                            background: 'none',
+                            color: activeTab === 'my-workspaces' ? '#0073ea' : '#676879',
                             fontSize: '13px',
-                            fontWeight: 500,
+                            fontWeight: activeTab === 'my-workspaces' ? 600 : 400,
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            boxShadow: activeTab === 'my-workspaces' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                            whiteSpace: 'nowrap'
+                            borderBottom: activeTab === 'my-workspaces' ? '2px solid #0073ea' : 'none',
+                            transition: 'all 0.2s'
                         }}
                     >
                         My Workspaces
@@ -323,22 +399,18 @@ export const Sidebar = () => {
                     <button
                         onClick={() => setActiveTab('shared')}
                         style={{
-                            flex: 1,
                             padding: '8px 12px',
                             border: 'none',
-                            borderRadius: '4px',
-                            backgroundColor: activeTab === 'shared' ? 'white' : 'transparent',
-                            color: activeTab === 'shared' ? '#323338' : '#676879',
+                            background: 'none',
+                            color: activeTab === 'shared' ? '#0073ea' : '#676879',
                             fontSize: '13px',
-                            fontWeight: 500,
+                            fontWeight: activeTab === 'shared' ? 600 : 400,
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            boxShadow: activeTab === 'shared' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            borderBottom: activeTab === 'shared' ? '2px solid #0073ea' : 'none',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
                             gap: '6px',
-                            whiteSpace: 'nowrap'
+                            transition: 'all 0.2s'
                         }}
                     >
                         <Users size={14} />
@@ -346,256 +418,52 @@ export const Sidebar = () => {
                     </button>
                 </div>
 
-                {/* Workspace Selector - Always Show */}
-                <div style={{ display: 'flex', gap: '8px', position: 'relative', width: '100%' }}>
-                    <div
-                        className="workspace-switcher-trigger"
-                        onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
+                <div style={{ display: 'flex', gap: '8px', position: 'relative', width: '100%', marginBottom: '8px' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#676879' }} />
+                        <input
+                            type="text"
+                            placeholder="Search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '8px 8px 8px 30px',
+                                borderRadius: '6px',
+                                border: '1px solid #e6e9ef',
+                                backgroundColor: '#f5f6f8',
+                                fontSize: '13px',
+                                outline: 'none',
+                                color: '#323338'
+                            }}
+                        />
+                    </div>
+                </div>
+
+                {/* Add Workspace Button Row */}
+                <div style={{ marginBottom: '12px' }}>
+                    <button
+                        onClick={() => setIsCreatingWorkspace(true)}
                         style={{
-                            flex: 1,
+                            width: '100%',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            padding: '6px 8px',
-                            border: '1px solid #c3c6d4',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            backgroundColor: 'white',
-                            position: 'relative',
-                            minWidth: 0
-                        }}
-                    >
-                        <div style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '4px',
-                            backgroundColor: activeTab === 'shared' ? '#6b7280' : '#579bfc',
-                            color: 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            position: 'relative',
-                            flexShrink: 0
-                        }}>
-                            {activeTab === 'shared' ? <Users size={14} /> : activeWorkspace?.title.charAt(0).toUpperCase()}
-                            <div style={{
-                                position: 'absolute',
-                                bottom: '-2px',
-                                right: '-2px',
-                                backgroundColor: '#323338',
-                                borderRadius: '50%',
-                                padding: '2px',
-                                display: 'flex'
-                            }}>
-                                <Home size={8} color="white" />
-                            </div>
-                        </div>
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#323338', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {activeTab === 'shared' ? 'Shared with me' : (activeWorkspace?.title || 'Loading...')}
-                        </span>
-                        <ChevronDown size={16} color="#676879" style={{ flexShrink: 0 }} />
-                    </div>
-
-                    <button
-                        className="workspace-add-btn"
-                        style={{
-                            width: '38px',
-                            height: '38px',
-                            backgroundColor: '#0073ea',
-                            color: 'white',
+                            padding: '8px 12px',
                             border: 'none',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            background: 'none',
+                            color: '#676879',
+                            fontSize: '13.5px',
                             cursor: 'pointer',
-                            flexShrink: 0
+                            borderRadius: '6px',
+                            transition: 'background-color 0.2s'
                         }}
-                        onClick={() => setIsCreating(true)}
-                        title="Create New Board"
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f5f6f8'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                        <Plus size={24} />
+                        <Plus size={16} />
+                        <span>Add New Workspace</span>
                     </button>
-                    {isWorkspaceDropdownOpen && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '100%',
-                            left: 0,
-                            width: '300px',
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
-                            border: '1px solid #e6e9ef',
-                            zIndex: 1000,
-                            marginTop: '8px',
-                            padding: '16px'
-                        }} onClick={(e) => e.stopPropagation()}>
-                            <div style={{ position: 'relative', marginBottom: '16px' }}>
-                                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#676879' }} />
-                                <input
-                                    type="text"
-                                    placeholder="Search for a workspace"
-                                    style={{
-                                        width: '100%',
-                                        padding: '8px 8px 8px 30px',
-                                        borderRadius: '4px',
-                                        border: '1px solid #c3c6d4', // Lighter border
-                                        backgroundColor: 'white', // Explicit white bg
-                                        fontSize: '13px',
-                                        outline: 'none',
-                                        color: '#323338'
-                                    }}
-                                    autoFocus
-                                />
-                            </div>
-
-                            <div style={{ marginBottom: '8px', fontSize: '14px', color: '#676879' }}>
-                                {activeTab === 'shared' ? 'Shared with me' : 'My workspaces'}
-                            </div>
-
-                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                {filteredWorkspaces.map(ws => (
-                                    <div
-                                        key={ws.id}
-                                        onClick={() => {
-                                            setActiveWorkspace(ws.id);
-                                            setIsWorkspaceDropdownOpen(false);
-                                        }}
-                                        className="workspace-item-row"
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '12px',
-                                            padding: '8px',
-                                            backgroundColor: ws.id === activeWorkspaceId ? '#e5f4ff' : 'transparent',
-                                            borderRadius: '4px',
-                                            cursor: 'pointer',
-                                            marginBottom: '4px',
-                                            position: 'relative'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = ws.id === activeWorkspaceId ? '#e5f4ff' : '#f5f6f8'}
-                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = ws.id === activeWorkspaceId ? '#e5f4ff' : 'transparent'}
-                                    >
-                                        <div style={{
-                                            width: '32px',
-                                            height: '32px',
-                                            borderRadius: '6px',
-                                            backgroundColor: '#579bfc',
-                                            color: 'white',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '16px',
-                                            fontWeight: 600,
-                                            flexShrink: 0
-                                        }}>
-                                            {ws.title.charAt(0).toUpperCase()}
-                                        </div>
-
-                                        {editingWorkspaceId === ws.id ? (
-                                            <input
-                                                autoFocus
-                                                value={editWorkspaceTitle}
-                                                onChange={(e) => setEditWorkspaceTitle(e.target.value)}
-                                                onBlur={() => handleRenameWorkspace(ws.id)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleRenameWorkspace(ws.id)}
-                                                onClick={(e) => e.stopPropagation()}
-                                                style={{ flex: 1, padding: '4px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                            />
-                                        ) : (
-                                            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                <span style={{ fontSize: '14px', color: '#323338', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.title}</span>
-                                                {ws.owner_id !== user?.id && (
-                                                    <span style={{ fontSize: '10px', backgroundColor: '#e6f4ff', color: '#0073ea', padding: '2px 6px', borderRadius: '4px', width: 'fit-content' }}>Shared</span>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Workspace Menu Trigger */}
-                                        <div className="workspace-actions" onClick={(e) => e.stopPropagation()}>
-                                            <MoreHorizontal
-                                                size={16}
-                                                className="action-icon"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    setMenuPosition({ top: rect.bottom, left: rect.left });
-                                                    setActiveWorkspaceMenu(activeWorkspaceMenu === ws.id ? null : ws.id);
-                                                    setActiveBoardMenu(null);
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Fixed Position Workspace Menu */}
-                            {activeWorkspaceMenu && (
-                                <div
-                                    className="context-menu"
-                                    style={{
-                                        position: 'fixed',
-                                        top: menuPosition.top,
-                                        left: menuPosition.left,
-                                        backgroundColor: 'white',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                        borderRadius: '4px',
-                                        padding: '4px',
-                                        zIndex: 9999, // Ensure it's on top of everything
-                                        width: '160px'
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {workspaces.find(w => w.id === activeWorkspaceMenu)?.owner_id === user?.id && (
-                                        <div className="menu-item" onClick={() => {
-                                            setShareWorkspaceId(activeWorkspaceMenu);
-                                            setActiveWorkspaceMenu(null);
-                                        }}>
-                                            <Users size={14} /> Share
-                                        </div>
-                                    )}
-                                    <div className="menu-item" onClick={() => {
-                                        const ws = workspaces.find(w => w.id === activeWorkspaceMenu);
-                                        if (ws) {
-                                            setEditingWorkspaceId(ws.id);
-                                            setEditWorkspaceTitle(ws.title);
-                                        }
-                                        setActiveWorkspaceMenu(null);
-                                    }}>
-                                        <Edit2 size={14} /> Rename
-                                    </div>
-                                    <div className="menu-item" onClick={() => {
-                                        duplicateWorkspace(activeWorkspaceMenu);
-                                        setActiveWorkspaceMenu(null);
-                                    }}>
-                                        <Copy size={14} /> Duplicate
-                                    </div>
-                                    <div className="menu-item delete" onClick={() => {
-                                        setWorkspaceToDelete(activeWorkspaceMenu);
-                                        setActiveWorkspaceMenu(null);
-                                    }}>
-                                        <Trash2 size={14} /> Delete
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab !== 'shared' && (
-                                <div style={{ borderTop: '1px solid #e6e9ef', paddingTop: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                    <div
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#323338', fontSize: '14px' }}
-                                        onClick={() => {
-                                            setIsCreatingWorkspace(true);
-                                            setIsWorkspaceDropdownOpen(false);
-                                        }}
-                                    >
-                                        <Plus size={16} /> Add workspace
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
 
 
@@ -660,82 +528,187 @@ export const Sidebar = () => {
                 )}
             </div>
 
-            <div className="sidebar-content">
-                {isCreating && (
-                    <div className="sidebar-item" style={{ paddingLeft: '12px', cursor: 'default' }}>
-                        <div style={{ width: '22px' }} /> {/* Spacer for alignment with GripVertical */}
-                        <LayoutDashboard size={16} color="#0073ea" />
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                if (newBoardTitle.trim()) {
-                                    addBoard(newBoardTitle);
-                                    setNewBoardTitle('');
-                                    setIsCreating(false);
-                                }
-                            }}
-                            style={{ flex: 1, display: 'flex' }}
-                        >
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="New Board"
-                                className="sidebar-item-input"
-                                value={newBoardTitle}
-                                onChange={(e) => setNewBoardTitle(e.target.value)}
-                                onBlur={() => {
-                                    if (newBoardTitle.trim()) {
-                                        addBoard(newBoardTitle);
-                                        setNewBoardTitle('');
-                                    }
-                                    setIsCreating(false);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Escape') setIsCreating(false);
-                                }}
-                            />
-                        </form>
-                    </div>
-                )}
+            <div className="sidebar-content" style={{ padding: '0' }}>
+                <div className="tree-container">
+                    {filteredWorkspaces.map(ws => {
+                        const isExpanded = expandedWorkspaces.has(ws.id);
+                        const isActive = activeWorkspaceId === ws.id;
 
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                >
-                    <SortableContext
-                        items={filteredBoards.map(b => b.id)}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        {filteredBoards.map((board) => (
-                            <SortableBoardItem
-                                key={board.id}
-                                board={board}
-                                activeBoardId={activeBoardId}
-                                setActiveBoard={setActiveBoard}
-                                editingBoardId={editingBoardId}
-                                setEditingBoardId={setEditingBoardId}
-                                editTitle={editTitle}
-                                setEditTitle={setEditTitle}
-                                handleRename={handleRename}
-                                handleContextMenu={(e: any, id: string, rect: DOMRect) => {
-                                    e.stopPropagation();
-                                    setMenuPosition({ top: rect.bottom, left: rect.left });
-                                    setActiveBoardMenu(activeBoardMenu === id ? null : id);
-                                    setActiveWorkspaceMenu(null);
-                                }}
-                                can={can}
-                                setBoardToDelete={setBoardToDelete}
-                            />
-                        ))}
-                    </SortableContext>
-                </DndContext>
+                        // Refined board filtering: 
+                        // If I own the workspace, show all boards.
+                        // If I don't own it, show all boards if workspace is shared OR only show shared boards.
+                        const wsBoards = boards.filter(b => {
+                            if (b.workspaceId !== ws.id) return false;
 
-                {filteredBoards.length === 0 && (
-                    <div style={{ padding: '32px 16px', textAlign: 'center', color: '#676879', fontSize: '13px' }}>
-                        {activeTab === 'shared' ? 'No boards shared yet' : 'No boards found'}
-                    </div>
-                )}
+                            // Permission check
+                            const isAccessible = ws.owner_id === user?.id || sharedWorkspaceIds.includes(ws.id) || sharedBoardIds.includes(b.id);
+                            if (!isAccessible) return false;
+
+                            // Search check
+                            if (searchQuery.trim()) {
+                                const workspaceMatches = ws.title.toLowerCase().includes(searchQuery.toLowerCase());
+                                if (workspaceMatches) return true; // Show all boards if workspace matches
+
+                                return b.title.toLowerCase().includes(searchQuery.toLowerCase());
+                            }
+                            return true;
+                        });
+
+                        return (
+                            <div key={ws.id} className="tree-node">
+                                {/* Workspace Header */}
+                                <div
+                                    className={clsx('tree-node-parent', { expanded: isExpanded, active: isActive })}
+                                    style={{
+                                        backgroundColor: isActive ? '#f0f3ff' : 'transparent',
+                                        color: isActive ? '#0073ea' : '#323338',
+                                    }}
+                                    onClick={() => {
+                                        toggleWorkspace(ws.id);
+                                        setActiveWorkspace(ws.id);
+                                    }}
+                                >
+                                    <WorkspaceIcon title={ws.title} isActive={isExpanded} />
+                                    {editingWorkspaceId === ws.id ? (
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            className="sidebar-item-input"
+                                            style={{ margin: 0, padding: '2px 4px', flex: 1 }}
+                                            value={editWorkspaceTitle}
+                                            onChange={(e) => setEditWorkspaceTitle(e.target.value)}
+                                            onBlur={() => handleRenameWorkspace(ws.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleRenameWorkspace(ws.id);
+                                                if (e.key === 'Escape') setEditingWorkspaceId(null);
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                    ) : (
+                                        <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {ws.title}
+                                        </span>
+                                    )}
+
+                                    {/* Workspace Actions */}
+                                    <div className="sidebar-item-action" onClick={(e) => e.stopPropagation()}>
+                                        <MoreHorizontal
+                                            size={14}
+                                            onClick={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setMenuPosition({ top: rect.bottom, left: rect.left });
+                                                setActiveWorkspaceMenu(activeWorkspaceMenu === ws.id ? null : ws.id);
+                                                setActiveBoardMenu(null);
+                                            }}
+                                        />
+                                    </div>
+
+                                    <ChevronRight
+                                        size={16}
+                                        className="chevron"
+                                    />
+                                </div>
+
+                                {/* Expanded Content */}
+                                {isExpanded && (
+                                    <div className="tree-node-children">
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
+                                        >
+                                            <SortableContext
+                                                items={wsBoards.map(b => b.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                {wsBoards.map((board, index) => (
+                                                    <SortableBoardItem
+                                                        key={board.id}
+                                                        board={board}
+                                                        activeBoardId={activeBoardId}
+                                                        setActiveBoard={setActiveBoard}
+                                                        editingBoardId={editingBoardId}
+                                                        setEditingBoardId={setEditingBoardId}
+                                                        editTitle={editTitle}
+                                                        setEditTitle={setEditTitle}
+                                                        handleRename={handleRename}
+                                                        handleContextMenu={(e: any, id: string, rect: DOMRect) => {
+                                                            e.stopPropagation();
+                                                            setMenuPosition({ top: rect.bottom, left: rect.left });
+                                                            setActiveBoardMenu(activeBoardMenu === id ? null : id);
+                                                            setActiveWorkspaceMenu(null);
+                                                        }}
+                                                        can={can}
+                                                        isLastChild={index === wsBoards.length - 1}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                        </DndContext>
+
+                                        {/* Add Board Button Inside Tree */}
+                                        {!searchActive && (
+                                            <div className="tree-node-leaf last-child">
+                                                {creatingBoardInWorkspaceId === ws.id ? (
+                                                    <div className="tree-sidebar-item" style={{ paddingLeft: '4px', cursor: 'default' }}>
+                                                        <BoardIcon size={16} style={{ color: '#0073ea' }} />
+                                                        <form
+                                                            onSubmit={(e) => {
+                                                                e.preventDefault();
+                                                                if (newBoardTitle.trim()) {
+                                                                    addBoard(newBoardTitle);
+                                                                    setNewBoardTitle('');
+                                                                    setCreatingBoardInWorkspaceId(null);
+                                                                }
+                                                            }}
+                                                            style={{ flex: 1, display: 'flex' }}
+                                                        >
+                                                            <input
+                                                                autoFocus
+                                                                type="text"
+                                                                placeholder="New Board"
+                                                                className="sidebar-item-input"
+                                                                style={{ margin: 0, padding: '2px 4px', width: '100%' }}
+                                                                value={newBoardTitle}
+                                                                onChange={(e) => setNewBoardTitle(e.target.value)}
+                                                                onBlur={() => {
+                                                                    if (newBoardTitle.trim()) {
+                                                                        addBoard(newBoardTitle);
+                                                                        setNewBoardTitle('');
+                                                                    }
+                                                                    setCreatingBoardInWorkspaceId(null);
+                                                                }}
+                                                            />
+                                                        </form>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="tree-sidebar-item"
+                                                        style={{ color: '#0073ea', opacity: 0.8 }}
+                                                        onClick={() => {
+                                                            setActiveWorkspace(ws.id);
+                                                            setCreatingBoardInWorkspaceId(ws.id);
+                                                        }}
+                                                    >
+                                                        <Plus size={14} />
+                                                        <span>Add board</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {filteredWorkspaces.length === 0 && (
+                        <div style={{ padding: '32px 16px', textAlign: 'center', color: '#676879', fontSize: '13px' }}>
+                            No workspaces found
+                        </div>
+                    )}
+                </div>
+
+
 
                 {/* Draw Board Context Menu Outside of SortableItem to avoid transform issues */}
                 {activeBoardMenu && (
@@ -789,7 +762,7 @@ export const Sidebar = () => {
                                     maxHeight: '200px',
                                     overflowY: 'auto'
                                 }}>
-                                    {workspaces.map(ws => (
+                                    {allAccessibleWorkspaces.map(ws => (
                                         <div
                                             key={ws.id}
                                             className="menu-item"
@@ -833,7 +806,7 @@ export const Sidebar = () => {
                                     maxHeight: '200px',
                                     overflowY: 'auto'
                                 }}>
-                                    {workspaces.map(ws => (
+                                    {allAccessibleWorkspaces.map(ws => (
                                         <div
                                             key={ws.id}
                                             className="menu-item"
@@ -857,6 +830,44 @@ export const Sidebar = () => {
                             setBoardToDelete(activeBoardMenu);
                             setActiveBoardMenu(null);
                         }} onMouseEnter={() => setActiveSubmenu(null)}>
+                            <Trash2 size={14} /> Delete
+                        </div>
+                    </div>
+                )}
+
+                {/* Draw Workspace Context Menu */}
+                {activeWorkspaceMenu && (
+                    <div className="context-menu" style={{
+                        position: 'fixed',
+                        top: menuPosition.top,
+                        left: menuPosition.left,
+                        backgroundColor: 'white',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        borderRadius: '4px',
+                        padding: '4px',
+                        zIndex: 9999,
+                        width: '180px'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <div className="menu-item" onClick={() => {
+                            setShareWorkspaceId(activeWorkspaceMenu);
+                            setActiveWorkspaceMenu(null);
+                        }}>
+                            <Users size={14} /> Share
+                        </div>
+                        <div className="menu-item" onClick={() => {
+                            const ws = workspaces.find(w => w.id === activeWorkspaceMenu);
+                            if (ws) {
+                                setEditingWorkspaceId(ws.id);
+                                setEditWorkspaceTitle(ws.title);
+                            }
+                            setActiveWorkspaceMenu(null);
+                        }}>
+                            <Edit2 size={14} /> Rename
+                        </div>
+                        <div className="menu-item delete" onClick={() => {
+                            setWorkspaceToDelete(activeWorkspaceMenu);
+                            setActiveWorkspaceMenu(null);
+                        }}>
                             <Trash2 size={14} /> Delete
                         </div>
                     </div>

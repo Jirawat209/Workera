@@ -119,6 +119,8 @@ const InboxFeed = () => {
     const { user } = useAuth();
     const notifications = useBoardStore(state => state.notifications || []);
     const loadNotifications = useBoardStore(state => state.loadNotifications);
+    const handleAcceptInvite = useBoardStore(state => state.handleAcceptInvite);
+    const handleDeclineInvite = useBoardStore(state => state.handleDeclineInvite);
     const navigateTo = useBoardStore(state => state.navigateTo);
     const isLoading = useBoardStore(state => state.isLoading);
     const [processingId, setProcessingId] = useState<string | null>(null);
@@ -146,34 +148,19 @@ const InboxFeed = () => {
 
     const handleMarkAsRead = (n: any) => dismissNotification(n.id);
 
-    const handleAcceptInvite = async (notification: any) => {
+    const onAccept = async (notification: any) => {
         setProcessingId(notification.id);
         try {
-            if (notification.type === 'workspace_invite') {
-                const { workspace_id, role } = notification.data;
-                const { data: existing } = await supabase.from('workspace_members').select('id').eq('workspace_id', workspace_id).eq('user_id', user?.id).single();
-                if (!existing) await supabase.from('workspace_members').insert({ workspace_id, user_id: user?.id, role });
-            } else if (notification.type === 'board_invite') {
-                const { board_id, role } = notification.data;
-                const { data: existing } = await supabase.from('board_members').select('id').eq('board_id', board_id).eq('user_id', user?.id).single();
-                if (!existing) await supabase.from('board_members').insert({ board_id, user_id: user?.id, role });
-            }
-            await supabase.from('notifications').update({ is_read: true, status: 'accepted' }).eq('id', notification.id);
-            await loadNotifications();
-        } catch (error) {
-            console.error(error);
+            await handleAcceptInvite(notification);
         } finally {
             setProcessingId(null);
         }
     };
 
-    const handleDeclineInvite = async (notification: any) => {
+    const onDecline = async (notification: any) => {
         setProcessingId(notification.id);
         try {
-            await supabase.from('notifications').update({ is_read: true, status: 'declined' }).eq('id', notification.id);
-            await loadNotifications();
-        } catch (error) {
-            console.error(error);
+            await handleDeclineInvite(notification);
         } finally {
             setProcessingId(null);
         }
@@ -274,7 +261,7 @@ const InboxFeed = () => {
                                         (!n.status || n.status === 'pending') && (
                                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                                                 <button
-                                                    onClick={() => handleAcceptInvite(n)}
+                                                    onClick={() => onAccept(n)}
                                                     disabled={processingId === n.id}
                                                     style={{
                                                         backgroundColor: processingId === n.id ? '#6ba3f5' : '#0073ea',
@@ -293,7 +280,7 @@ const InboxFeed = () => {
                                                     {processingId === n.id ? 'Accepting...' : 'Accept'}
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeclineInvite(n)}
+                                                    onClick={() => onDecline(n)}
                                                     disabled={processingId === n.id}
                                                     style={{
                                                         backgroundColor: 'transparent',

@@ -88,13 +88,13 @@ export const Cell = ({ item, column }: { item: Item, column: Column }) => {
 
     if (column.type === 'status') {
         const options = Array.isArray(column.options) ? column.options : [];
-        const statusOption = options.find(opt => opt.label === value);
+        const statusOption = options.find(opt => opt.id === value || opt.label === value);
         // Fallback for "Not Started" or empty
         const color = statusOption?.color || (value ? '#c4c4c4' : '#c4c4c4');
 
         backgroundColor = color;
         textColor = '#fff';
-        content = value || ''; // If empty string, show empty cell with gray bg? 
+        content = statusOption ? statusOption.label : (value || '');
         // Screenshot shows "Working on it" with Orange bg filling the WHOLE cell.
 
         // If it's a status cell, we usually fill the whole cell

@@ -219,7 +219,7 @@ export const StatusPicker = ({ columnId, options = [], onSelect, onClose, positi
             {safeOptions.map((opt) => (
                 <button
                     key={opt.id}
-                    onClick={() => onSelect(opt.label)}
+                    onClick={() => onSelect(opt.id)}
                     style={{
                         backgroundColor: opt.color,
                         color: 'white',

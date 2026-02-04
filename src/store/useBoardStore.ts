@@ -12,6 +12,7 @@ interface BoardState {
     activeWorkspaceId: string;
     workspaces: Workspace[];
     sharedBoardIds: string[];
+    sharedWorkspaceIds: string[];
     activeBoardMembers: any[]; // Store members of the active board
 
 
@@ -34,6 +35,7 @@ interface BoardState {
     // Workspace Actions
     addWorkspace: (title: string) => Promise<void>;
     deleteWorkspace: (id: string) => Promise<void>;
+    updateWorkspace: (id: string, title: string) => Promise<void>;
     setActiveWorkspace: (id: string) => void;
     duplicateWorkspace: (id: string) => void;
     renameWorkspace: (id: string, newTitle: string) => Promise<void>;
@@ -137,6 +139,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     boards: [],
     workspaces: [],
     sharedBoardIds: [],
+    sharedWorkspaceIds: [],
     activeBoardMembers: [], // Initialize empty
     isLoadingMembers: false,
 
@@ -183,14 +186,16 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                 { data: groups },
                 { data: columns },
                 { data: items },
-                { data: sharedBoardsData }
+                { data: sharedBoardsData },
+                { data: sharedWorkspacesData }
             ] = await Promise.all([
                 supabase.from('workspaces').select('*').order('order'),
                 supabase.from('boards').select('*').order('order'),
                 supabase.from('groups').select('*').order('order'),
                 supabase.from('columns').select('*').order('order'),
                 supabase.from('items').select('*').order('order'),
-                supabase.from('board_members').select('board_id').eq('user_id', user.id)
+                supabase.from('board_members').select('board_id').eq('user_id', user.id),
+                supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id)
             ]);
 
             // --- SELF HEALING: Fix 'Person' columns that are somehow 'text' type ---
@@ -360,7 +365,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                         type: c.type as ColumnType,
                         width: c.width,
                         order: c.order,
-                        options: c.options || [],
+                        order: c.order,
+                        options: typeof c.options === 'string' ? JSON.parse(c.options) : (c.options || []),
                         aggregation: c.aggregation
                     })),
                     // Just map groups, items are flat on board but we can also nest them if UI expects it
@@ -406,6 +412,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                 workspaces: workspaces.map(w => ({ id: w.id, title: w.title, order: w.order, owner_id: w.owner_id })),
                 boards: fullBoards,
                 sharedBoardIds: sharedBoardsData?.map((r: any) => r.board_id) || [],
+                sharedWorkspaceIds: sharedWorkspacesData?.map((r: any) => r.workspace_id) || [],
                 isLoading: false,
                 activeWorkspaceId,
                 activeBoardId
@@ -459,21 +466,146 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     addWorkspace: async (title) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const newId = uuidv4();
+        const newWsId = uuidv4();
         const { workspaces } = get();
         const order = workspaces.length;
-        set({ workspaces: [...workspaces, { id: newId, title, order, owner_id: user.id }], activeWorkspaceId: newId });
-        await supabase.from('workspaces').insert({ id: newId, title, owner_id: user.id, order });
+
+        // 1. Create Workspace
+        const newWorkspace: Workspace = { id: newWsId, title, order, owner_id: user.id };
+        set(state => ({
+            workspaces: [...state.workspaces, newWorkspace],
+            activeWorkspaceId: newWsId
+        }));
+        await supabase.from('workspaces').insert({ id: newWsId, title, owner_id: user.id, order });
+
+        // 2. Create "Starting Board" Template
+        const boardId = uuidv4();
+        const groupId = uuidv4();
+        const itemId = uuidv4();
+
+        const defaultColumns = [
+            { id: uuidv4(), title: 'Status', type: 'status' as ColumnType, order: 0, width: 140, options: [{ id: uuidv4(), label: 'Done', color: '#00c875' }, { id: uuidv4(), label: 'Working', color: '#fdab3d' }, { id: uuidv4(), label: 'Stuck', color: '#e2445c' }] },
+            { id: uuidv4(), title: 'Date', type: 'date' as ColumnType, order: 1, width: 140 },
+            { id: uuidv4(), title: 'Priority', type: 'status' as ColumnType, order: 2, width: 140, options: [{ id: uuidv4(), label: 'High', color: '#e2445c' }, { id: uuidv4(), label: 'Medium', color: '#fdab3d' }, { id: uuidv4(), label: 'Low', color: '#579bfc' }] },
+        ];
+
+        const defaultGroups = [
+            { id: groupId, title: 'Getting Started', color: '#579bfc', order: 0 }
+        ];
+
+        // Prepare item values (pre-fill first status and priority)
+        const statusCol = defaultColumns[0];
+        const priorityCol = defaultColumns[2];
+        const defaultValues = {
+            [statusCol.id]: statusCol.options?.[1].id, // 'Working'
+            [priorityCol.id]: priorityCol.options?.[1].id, // 'Medium'
+            [defaultColumns[1].id]: new Date().toISOString().split('T')[0] // Today's date
+        };
+
+        const newItem: Item = {
+            id: itemId,
+            title: 'My First Task',
+            boardId: boardId,
+            groupId: groupId,
+            values: defaultValues,
+            order: 0,
+            updates: []
+        };
+
+        const newBoard: Board = {
+            id: boardId,
+            workspaceId: newWsId,
+            title: 'Starting Board',
+            columns: defaultColumns,
+            groups: defaultGroups.map(g => ({ ...g, items: [newItem] })),
+            items: [newItem]
+        };
+
+        // Update local state
+        set(state => ({
+            boards: [...state.boards, newBoard],
+            activeBoardId: boardId
+        }));
+
+        // Persist to Supabase
+        await supabase.from('boards').insert({ id: boardId, workspace_id: newWsId, title: 'Starting Board', order: 0 });
+        await supabase.from('groups').insert(defaultGroups.map(g => ({ id: g.id, board_id: boardId, title: g.title, color: g.color, order: g.order })));
+        await supabase.from('columns').insert(defaultColumns.map(c => ({ id: c.id, board_id: boardId, title: c.title, type: c.type, order: c.order, width: c.width, options: c.options || [] })));
+        await supabase.from('items').insert({
+            id: itemId,
+            board_id: boardId,
+            group_id: groupId,
+            title: 'My First Task',
+            values: defaultValues,
+            order: 0
+        });
+
+        // Add creator as owner
+        await supabase.from('board_members').insert({ board_id: boardId, user_id: user.id, role: 'owner' });
+
+        // Refresh to ensure everything is synced
+        get().loadUserData(true);
     },
     deleteWorkspace: async (id) => {
-        set(state => ({ workspaces: state.workspaces.filter(w => w.id !== id) }));
+        set(state => ({
+            workspaces: state.workspaces.filter(w => w.id !== id),
+            boards: state.boards.filter(b => b.workspaceId !== id)
+        }));
         await supabase.from('workspaces').delete().eq('id', id);
+    },
+
+    updateWorkspace: async (id: string, title: string) => {
+        set(state => ({
+            workspaces: state.workspaces.map(w => w.id === id ? { ...w, title } : w)
+        }));
+        await supabase.from('workspaces').update({ title }).eq('id', id);
     },
     renameWorkspace: async (id, newTitle) => {
         set(state => ({ workspaces: state.workspaces.map(w => w.id === id ? { ...w, title: newTitle } : w) }));
         await supabase.from('workspaces').update({ title: newTitle }).eq('id', id);
     },
-    duplicateWorkspace: (_id) => { /* TODO: Implement deep copy in DB */ },
+    duplicateWorkspace: async (id: string) => {
+        const { workspaces, boards } = get();
+        const ws = workspaces.find(w => w.id === id);
+        if (!ws) return;
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const newWsId = uuidv4();
+        const newTitle = `${ws.title} (Copy)`;
+        const newOrder = workspaces.length;
+
+        const newWorkspace: Workspace = {
+            id: newWsId,
+            title: newTitle,
+            owner_id: user.id,
+            order: newOrder
+        };
+
+        set(state => ({
+            workspaces: [...state.workspaces, newWorkspace]
+        }));
+
+        const { error } = await supabase.from('workspaces').insert({
+            id: newWsId,
+            title: newTitle,
+            owner_id: user.id,
+            order: newOrder
+        });
+
+        if (error) {
+            alert(`Failed to duplicate workspace: ${error.message}`);
+            get().loadUserData(true);
+            return;
+        }
+
+        // Deep copy all boards
+        const wsBoards = boards.filter(b => b.workspaceId === id);
+        for (const board of wsBoards) {
+            await get().duplicateBoardToWorkspace(board.id, newWsId);
+        }
+    },
 
     // --- Board Actions ---
     addBoard: async (title, _subWorkspaceId) => {
@@ -504,7 +636,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
         await supabase.from('boards').insert({ id: boardId, workspace_id: activeWorkspaceId, title, order: boards.length });
         await supabase.from('groups').insert(defaultGroups.map(g => ({ id: g.id, board_id: boardId, title: g.title, color: g.color, order: g.order })));
-        await supabase.from('columns').insert(defaultColumns.map(c => ({ id: c.id, board_id: boardId, title: c.title, type: c.type, order: c.order, width: c.width, options: c.options ? JSON.stringify(c.options) : '{}' })));
+        await supabase.from('columns').insert(defaultColumns.map(c => ({ id: c.id, board_id: boardId, title: c.title, type: c.type, order: c.order, width: c.width, options: c.options || [] })));
 
         // Add creator as owner in board_members
         const { data: { user } } = await supabase.auth.getUser();
@@ -539,7 +671,12 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         set(state => ({ boards: state.boards.map(b => b.id === boardId ? { ...b, title: newTitle } : b) }));
         await supabase.from('boards').update({ title: newTitle }).eq('id', boardId);
     },
-    duplicateBoard: async (_boardId) => { /* TODO */ },
+    duplicateBoard: async (boardId: string) => {
+        const board = get().boards.find(b => b.id === boardId);
+        if (board) {
+            await get().duplicateBoardToWorkspace(boardId, board.workspaceId || get().activeWorkspaceId);
+        }
+    },
     moveBoard: async (activeId, overId) => {
         const { boards } = get();
         const activeIndex = boards.findIndex(b => b.id === activeId);
@@ -555,8 +692,171 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         const boardIds = newBoards.map(b => b.id);
         await supabase.rpc('reorder_boards', { _board_ids: boardIds });
     },
-    duplicateBoardToWorkspace: () => { },
-    moveBoardToWorkspace: () => { },
+    duplicateBoardToWorkspace: async (boardId: string, workspaceId: string) => {
+        const { boards, activeWorkspaceId } = get();
+        const targetWorkspaceId = workspaceId || activeWorkspaceId;
+        if (!targetWorkspaceId) return;
+
+        const sourceBoard = boards.find(b => b.id === boardId);
+        if (!sourceBoard) return;
+
+        const newBoardId = uuidv4();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        console.log(`[Duplicate] Starting deep copy of board ${boardId} to workspace ${targetWorkspaceId}`);
+
+        // 1. Prepare Columns Mapping
+        const columnIdMap: Record<string, string> = {};
+        const newColumns = sourceBoard.columns.map(c => {
+            const newId = uuidv4();
+            columnIdMap[c.id] = newId;
+            return { ...c, id: newId, board_id: newBoardId };
+        });
+
+        // 2. Prepare Groups Mapping
+        const groupIdMap: Record<string, string> = {};
+        const newGroups = sourceBoard.groups.map(g => {
+            const newId = uuidv4();
+            groupIdMap[g.id] = newId;
+            return { ...g, id: newId, board_id: newBoardId };
+        });
+
+        // 3. Prepare Items (Correcting value keys and group links)
+        const newItems = sourceBoard.items.map((item, idx) => {
+            const newId = uuidv4();
+            const newValues: Record<string, any> = {};
+            Object.keys(item.values || {}).forEach(oldColId => {
+                const newColId = columnIdMap[oldColId] || oldColId;
+                newValues[newColId] = item.values[oldColId];
+            });
+
+            return {
+                ...item,
+                id: newId,
+                boardId: newBoardId,
+                groupId: groupIdMap[item.groupId] || item.groupId,
+                values: newValues,
+                order: item.order ?? idx
+            };
+        });
+
+        // 4. Update Local State for immediate feedback
+        const duplicatedBoard: Board = {
+            ...sourceBoard,
+            id: newBoardId,
+            workspaceId: targetWorkspaceId,
+            title: `Copy of ${sourceBoard.title}`,
+            columns: newColumns.map(c => ({
+                id: c.id,
+                title: c.title,
+                type: c.type as ColumnType,
+                options: c.options,
+                order: c.order,
+                width: c.width,
+                aggregation: c.aggregation
+            })),
+            groups: newGroups.map(g => ({
+                id: g.id,
+                title: g.title,
+                color: g.color,
+                items: newItems.filter(i => i.groupId === g.id)
+            })),
+            items: newItems
+        };
+
+        set(state => ({
+            boards: [...state.boards, duplicatedBoard],
+            activeBoardId: newBoardId
+        }));
+
+        // 5. Persist to DB
+        try {
+            // Step A: Board
+            const { error: bErr } = await supabase.from('boards').insert({
+                id: newBoardId,
+                workspace_id: targetWorkspaceId,
+                title: duplicatedBoard.title,
+                order: boards.length
+            });
+            if (bErr) throw bErr;
+
+            // Step B: Groups
+            if (newGroups.length > 0) {
+                const { error: gErr } = await supabase.from('groups').insert(newGroups.map((g, idx) => ({
+                    id: g.id,
+                    board_id: newBoardId,
+                    title: g.title,
+                    color: g.color,
+                    order: g.order ?? idx
+                })));
+                if (gErr) throw gErr;
+            }
+
+            // Step C: Columns
+            if (newColumns.length > 0) {
+                const { error: cErr } = await supabase.from('columns').insert(newColumns.map(c => ({
+                    id: c.id,
+                    board_id: newBoardId,
+                    title: c.title,
+                    type: c.type,
+                    order: c.order,
+                    width: c.width || 140,
+                    options: c.options ? JSON.stringify(c.options) : '{}'
+                })));
+                if (cErr) throw cErr;
+            }
+
+            // Step D: Items
+            if (newItems.length > 0) {
+                const { error: iErr } = await supabase.from('items').insert(newItems.map(i => ({
+                    id: i.id,
+                    board_id: newBoardId,
+                    group_id: i.groupId,
+                    title: i.title,
+                    values: i.values,
+                    order: i.order
+                })));
+                if (iErr) throw iErr;
+            }
+
+            // Step E: Membership
+            const { error: mErr } = await supabase.from('board_members').insert({
+                board_id: newBoardId,
+                user_id: user.id,
+                role: 'owner'
+            });
+            if (mErr) throw mErr;
+
+            console.log(`[Duplicate] Successfully duplicated board ${boardId} as ${newBoardId}`);
+        } catch (err: any) {
+            console.error('[Duplicate] Failed to persist duplicated board:', err);
+            alert(`Failed to save duplicated board: ${err.message || 'Unknown error'}`);
+            // Re-sync to remove the optimistic update on failure
+            get().loadUserData(true);
+        }
+    },
+    moveBoardToWorkspace: async (boardId: string, workspaceId: string) => {
+        if (!boardId || !workspaceId) return;
+
+        set(state => ({
+            boards: state.boards.map(b => b.id === boardId ? { ...b, workspaceId } : b)
+        }));
+
+        const { error } = await supabase
+            .from('boards')
+            .update({ workspace_id: workspaceId })
+            .eq('id', boardId);
+
+        if (error) {
+            console.error('[Move] Failed to move board:', error);
+            alert(`Failed to move board: ${error.message}`);
+            // Re-sync on failure
+            get().loadUserData(true);
+        } else {
+            console.log(`[Move] Board ${boardId} moved to workspace ${workspaceId}`);
+        }
+    },
 
     // --- Group Actions ---
     addGroup: async (title) => {
@@ -1611,7 +1911,9 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         if (!user) return;
 
         try {
-            // Optimistic
+            console.log('[handleAcceptInvite] START - type:', notification.type, 'data:', notification.data);
+
+            // Optimistic update in UI
             set(state => ({
                 notifications: state.notifications.map(n =>
                     n.id === notification.id ? { ...n, status: 'accepted', is_read: true } : n
@@ -1619,36 +1921,99 @@ export const useBoardStore = create<BoardState>((set, get) => ({
             }));
 
             if (notification.type === 'workspace_invite') {
-                const { workspace_id, role } = notification.data;
-                // Add member logic (backend handles idempotent insertion usually, but safe to check)
-                const { error } = await supabase
-                    .from('workspace_members')
-                    .upsert({ workspace_id, user_id: user.id, role }, { onConflict: 'workspace_id,user_id' }); // Upsert is safer
+                const { workspace_id, role } = notification.data || {};
+                if (!workspace_id) throw new Error('Invite notification data is missing workspace_id');
 
-                if (error) throw error;
+                // Check for existing membership to avoid duplicate or constraint errors
+                const { data: existing } = await supabase
+                    .from('workspace_members')
+                    .select('id')
+                    .eq('workspace_id', workspace_id)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (existing) {
+                    console.log('[handleAcceptInvite] User is already a member, updating role');
+                    const { error } = await supabase
+                        .from('workspace_members')
+                        .update({ role: role || 'member' })
+                        .eq('id', existing.id);
+                    if (error) throw error;
+                } else {
+                    console.log('[handleAcceptInvite] Adding new member record');
+                    const { error } = await supabase
+                        .from('workspace_members')
+                        .insert({
+                            workspace_id,
+                            user_id: user.id,
+                            role: role || 'member'
+                        });
+                    if (error) throw error;
+                }
 
             } else if (notification.type === 'board_invite') {
-                const { board_id, role } = notification.data;
-                const { error } = await supabase
-                    .from('board_members')
-                    .upsert({ board_id, user_id: user.id, role }, { onConflict: 'board_id,user_id' });
+                const { board_id, role } = notification.data || {};
+                if (!board_id) throw new Error('Invite notification data is missing board_id');
 
-                if (error) throw error;
+                const { data: existing } = await supabase
+                    .from('board_members')
+                    .select('id')
+                    .eq('board_id', board_id)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (existing) {
+                    const { error } = await supabase
+                        .from('board_members')
+                        .update({ role: role || 'member' })
+                        .eq('id', existing.id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase
+                        .from('board_members')
+                        .insert({
+                            board_id,
+                            user_id: user.id,
+                            role: role || 'member'
+                        });
+                    if (error) throw error;
+                }
             }
 
-            // Update Notification Status
-            await supabase
+            // Update Notification Status in DB
+            const { error: notifError } = await supabase
                 .from('notifications')
                 .update({ is_read: true, status: 'accepted' })
                 .eq('id', notification.id);
 
-            // Reload Data to see new workspace/board
-            get().loadUserData(true);
+            if (notifError) throw notifError;
 
-        } catch (error) {
+            // Reload Data to see new workspace/board
+            await get().loadUserData(true);
+            console.log('[handleAcceptInvite] SUCCESS');
+
+        } catch (error: any) {
             console.error('Error accepting invite:', error);
-            alert('Failed to accept invite');
-            get().loadNotifications(); // Revert
+
+            // Extract the most useful error message possible
+            let errorMessage = 'Unknown error';
+            if (error?.message) {
+                errorMessage = error.message;
+            } else if (error?.error_description) {
+                errorMessage = error.error_description;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else {
+                try {
+                    errorMessage = JSON.stringify(error);
+                } catch (e) {
+                    errorMessage = 'Unknown error (could not stringify)';
+                }
+            }
+
+            alert(`Failed to accept invite: ${errorMessage}`);
+            // Revert state by reloading notifications
+            get().loadNotifications();
         }
     },
 

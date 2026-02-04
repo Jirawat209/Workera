@@ -1,0 +1,151 @@
+/* Tree Sidebar Styles */
+
+.tree-container {
+    padding: 4px 8px;
+}
+
+.tree-node {
+    margin-bottom: 2px;
+}
+
+/* Parent Node (Workspace) */
+.tree-node-parent {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #323338;
+    font-weight: 500;
+    font-size: 14px;
+    transition: background-color 0.1s ease;
+    gap: 10px;
+}
+
+.tree-node-parent:hover {
+    background-color: #f5f6f8;
+}
+
+.tree-node-parent .chevron {
+    margin-left: auto;
+    color: #676879;
+    transition: transform 0.2s ease;
+}
+
+.tree-node-parent.expanded .chevron {
+    transform: rotate(0deg);
+}
+
+.tree-node-parent:not(.expanded) .chevron {
+    transform: rotate(-90deg);
+}
+
+/* Children Container */
+.tree-node-children {
+    margin-left: 12px;
+    /* Alignment for the vertical line */
+    position: relative;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+/* The vertical line that spans all children */
+.tree-node-children::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    /* Aligned to icon center (12px margin + 10px = 22px) */
+    top: -10px;
+    /* Stop exactly at the bottom-center of the circle */
+    /* Connect to parent icon */
+    bottom: 20px;
+    /* Ends at the middle of the last child */
+    width: 1.5px;
+    background-color: #e0e0e0;
+    z-index: 1;
+}
+
+/* Leaf Node (Board) */
+.tree-node-leaf {
+    position: relative;
+    padding-left: 28px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    z-index: 2;
+}
+
+/* The curved connector line */
+.tree-node-leaf::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    /* Match vertical line */
+    top: -8px;
+    width: 14px;
+    height: 20px;
+    border-left: 1.5px solid #e0e0e0;
+    border-bottom: 1.5px solid #e0e0e0;
+    border-bottom-left-radius: 8px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Adjusted sidebar-item for tree-view */
+.tree-sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #676879;
+    font-size: 13.5px;
+    transition: all 0.1s ease;
+    gap: 8px;
+    background-color: transparent;
+    user-select: none;
+}
+
+.tree-sidebar-item:hover {
+    background-color: #f5f6f8;
+    color: #323338;
+}
+
+.tree-sidebar-item.active {
+    background-color: #e5f4ff;
+    color: #0073ea;
+    font-weight: 500;
+}
+
+.tree-sidebar-item .item-icon {
+    flex-shrink: 0;
+}
+
+.tree-sidebar-item .item-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Show context menu action on hover */
+.tree-sidebar-item .sidebar-item-action,
+.tree-node-parent .sidebar-item-action {
+    opacity: 0;
+    transition: opacity 0.2s;
+    padding: 4px;
+    border-radius: 4px;
+    color: #676879;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tree-sidebar-item:hover .sidebar-item-action,
+.tree-node-parent:hover .sidebar-item-action {
+    opacity: 1;
+}
+
+.sidebar-item-action:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #323338;
+}
