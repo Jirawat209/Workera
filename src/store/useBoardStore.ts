@@ -365,7 +365,6 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                         type: c.type as ColumnType,
                         width: c.width,
                         order: c.order,
-                        order: c.order,
                         options: typeof c.options === 'string' ? JSON.parse(c.options) : (c.options || []),
                         aggregation: c.aggregation
                     })),
