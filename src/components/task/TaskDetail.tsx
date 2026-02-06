@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useBoardStore } from '../../store/useBoardStore';
 import { useUserStore } from '../../store/useUserStore';
-import { X, Send, MessageSquare, FileText, Activity, Trash2 } from 'lucide-react';
-
+import { X, Send, MessageSquare, FileText, Trash2, Plus, ExternalLink } from 'lucide-react';
 import { RichTextEditor } from '../ui/RichTextEditor';
+import { isValidGoogleDriveUrl, getGoogleDriveFileName } from '../../lib/utils';
+import { v4 as uuidv4 } from 'uuid';
+import type { FileLink } from '../../types';
 
 export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () => void }) => {
     const board = useBoardStore(state => state.boards.find(b => b.id === state.activeBoardId));
@@ -18,8 +20,49 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
 
     const { currentUser } = useUserStore();
 
-    const [activeTab, setActiveTab] = useState<'updates' | 'files' | 'activity'>('updates');
+    const [activeTab, setActiveTab] = useState<'updates' | 'files'>('updates');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+    // File Tab State
+    const [fileUrl, setFileUrl] = useState('');
+    const [fileName, setFileName] = useState('');
+    const [fileError, setFileError] = useState<string | null>(null);
+
+    const updateItemFiles = useBoardStore(state => state.updateItemFiles);
+
+    const handleAddFile = () => {
+        if (!fileUrl.trim()) return;
+
+        let url = fileUrl.trim();
+        if (!url.startsWith('http')) {
+            url = `https://${url}`;
+        }
+
+        if (!isValidGoogleDriveUrl(url)) {
+            setFileError('Only Google Drive links are allowed.');
+            return;
+        }
+
+        let name = fileName.trim();
+        if (!name) {
+            name = getGoogleDriveFileName(url);
+        }
+
+        const newFile: FileLink = {
+            id: uuidv4(),
+            name: name,
+            url: url,
+            type: 'google-drive'
+        };
+
+        const currentFiles = activeItem?.files || [];
+        updateItemFiles(itemId, [...currentFiles, newFile]);
+
+        // Reset form
+        setFileUrl('');
+        setFileName('');
+        setFileError(null);
+    };
 
     // FIX: Keep component mounted when reloading data to preserve typed text
     if (!activeItem) {
@@ -57,6 +100,11 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
         setDeleteConfirmId(null);
     };
 
+    const tabs = [
+        { id: 'updates', label: 'Updates', icon: MessageSquare },
+        { id: 'files', label: 'Files', icon: FileText }
+    ] as const;
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* ... Header and Tabs ... */}
@@ -81,7 +129,14 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
 
                             <input
                                 value={activeItem.title}
-                                onChange={(e) => updateItemTitle(itemId, e.target.value)}
+                                onChange={(e) => updateItemTitle(itemId, e.target.value, false)}
+                                onBlur={(e) => updateItemTitle(itemId, e.target.value, true)} // Log only on blur
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        updateItemTitle(itemId, activeItem.title, true); // Log on Enter
+                                        e.currentTarget.blur();
+                                    }
+                                }}
                                 style={{
                                     border: 'none',
                                     background: 'transparent',
@@ -115,31 +170,28 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                 </button>
             </div>
 
-            {/* Tabs */}
+            {/* New Tab List (Removed Activity) */}
             <div style={{
                 padding: '0 32px',
                 borderBottom: '1px solid hsl(var(--color-border))',
+                backgroundColor: 'hsl(var(--color-bg-surface))', // Use surface color
                 display: 'flex',
                 gap: '24px'
             }}>
-                {[
-                    { id: 'updates', label: 'Updates', icon: MessageSquare },
-                    { id: 'files', label: 'Files', icon: FileText },
-                    { id: 'activity', label: 'Activity Log', icon: Activity }
-                ].map(tab => (
+                {tabs.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         style={{
+                            padding: '12px 0',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === tab.id ? '2px solid hsl(var(--color-brand-primary))' : '2px solid transparent',
+                            color: activeTab === tab.id ? 'hsl(var(--color-brand-primary))' : 'hsl(var(--color-text-secondary))',
+                            cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            padding: '16px 0',
-                            background: 'transparent',
-                            border: 'none',
-                            borderBottom: `2px solid ${activeTab === tab.id ? 'hsl(var(--color-brand-primary))' : 'transparent'}`,
-                            color: activeTab === tab.id ? 'hsl(var(--color-brand-primary))' : 'hsl(var(--color-text-secondary))',
-                            cursor: 'pointer',
                             fontSize: '14px',
                             fontWeight: 500
                         }}
@@ -244,63 +296,62 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                                                     <button
                                                         onClick={() => handleDeleteClick(update.id)}
                                                         style={{
+                                                            background: 'none',
                                                             border: 'none',
-                                                            background: 'transparent',
-                                                            color: '#666', // Ensure visibility
                                                             cursor: 'pointer',
+                                                            color: '#9ca3af',
                                                             padding: '4px'
                                                         }}
-                                                        title="Delete update"
+                                                        title="Delete Update"
                                                     >
-                                                        <Trash2 size={16} />
+                                                        <Trash2 size={14} />
                                                     </button>
 
-                                                    {/* Confirmation Popover */}
                                                     {deleteConfirmId === update.id && (
                                                         <div style={{
                                                             position: 'absolute',
                                                             top: '100%',
                                                             right: 0,
-                                                            marginTop: '8px',
+                                                            marginTop: '4px',
                                                             backgroundColor: 'white',
-                                                            border: '1px solid hsl(var(--color-border))',
-                                                            borderRadius: '8px',
-                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                                            padding: '12px',
+                                                            border: '1px solid #fee2e2',
+                                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                                            borderRadius: '6px',
+                                                            padding: '8px',
                                                             zIndex: 10,
-                                                            width: '200px'
+                                                            minWidth: '120px'
                                                         }}>
-                                                            <div style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 500 }}>
-                                                                Delete this update?
-                                                            </div>
-                                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                                                <button
-                                                                    onClick={() => setDeleteConfirmId(null)}
-                                                                    style={{
-                                                                        padding: '4px 12px',
-                                                                        border: '1px solid #d0d4e4',
-                                                                        background: 'white',
-                                                                        borderRadius: '4px',
-                                                                        cursor: 'pointer',
-                                                                        fontSize: '13px',
-                                                                        color: '#323338'
-                                                                    }}
-                                                                >
-                                                                    Cancel
-                                                                </button>
+                                                            <div style={{ fontSize: '12px', marginBottom: '8px', color: '#ef4444', fontWeight: 500 }}>Delete this update?</div>
+                                                            <div style={{ display: 'flex', gap: '4px' }}>
                                                                 <button
                                                                     onClick={() => confirmDelete(update.id)}
                                                                     style={{
-                                                                        padding: '4px 12px',
-                                                                        border: 'none',
-                                                                        background: '#e2445c',
+                                                                        flex: 1,
+                                                                        backgroundColor: '#ef4444',
                                                                         color: 'white',
+                                                                        border: 'none',
                                                                         borderRadius: '4px',
-                                                                        cursor: 'pointer',
-                                                                        fontSize: '13px'
+                                                                        padding: '4px',
+                                                                        fontSize: '11px',
+                                                                        cursor: 'pointer'
                                                                     }}
                                                                 >
                                                                     Delete
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setDeleteConfirmId(null)}
+                                                                    style={{
+                                                                        flex: 1,
+                                                                        backgroundColor: '#f3f4f6',
+                                                                        color: '#374151',
+                                                                        border: '1px solid #d1d5db',
+                                                                        borderRadius: '4px',
+                                                                        padding: '4px',
+                                                                        fontSize: '11px',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                >
+                                                                    Cancel
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -310,32 +361,172 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                                         </div>
                                         {/* Render HTML Content */}
                                         <div
-                                            className="update-content"
-                                            style={{ fontSize: '14px', lineHeight: '1.5' }}
+                                            className="prose prose-sm max-w-none text-gray-800"
                                             dangerouslySetInnerHTML={{ __html: update.content }}
                                         />
                                     </div>
                                 ))}
                             </div>
                         )}
-                        <style>{`
-                            .update-content ul, .update-content ol { margin-left: 20px; }
-                            .update-content a { color: hsl(var(--color-brand-primary)); text-decoration: underline; }
-                        `}</style>
                     </div>
                 )}
+
                 {activeTab === 'files' && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#888' }}>
-                        Files coming soon
-                    </div>
-                )}
-                {activeTab === 'activity' && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#888' }}>
-                        Activity Log coming soon
+                    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+                        <div style={{ marginBottom: '24px' }}>
+                            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>Files</h3>
+
+                            {/* Inline Add File Form */}
+                            <div style={{
+                                backgroundColor: 'white',
+                                padding: '20px',
+                                borderRadius: '8px',
+                                border: '1px solid #e1e4e8',
+                                marginBottom: '24px'
+                            }}>
+                                <div style={{ marginBottom: '16px', fontWeight: 500, fontSize: '14px' }}>Add Google Drive Link</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <input
+                                                type="text"
+                                                placeholder="Paste Google Drive Link here..."
+                                                value={fileUrl}
+                                                onChange={(e) => {
+                                                    setFileUrl(e.target.value);
+                                                    if (fileError) setFileError(null);
+                                                }}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '8px 12px',
+                                                    borderRadius: '4px',
+                                                    border: fileError ? '1px solid #e11d48' : '1px solid #d0d4e4',
+                                                    fontSize: '14px',
+                                                    outline: 'none'
+                                                }}
+                                            />
+                                            {fileError && <div style={{ color: '#e11d48', fontSize: '12px', marginTop: '4px' }}>{fileError}</div>}
+                                        </div>
+                                        <div style={{ width: '200px' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="File Name (Optional)"
+                                                value={fileName}
+                                                onChange={(e) => setFileName(e.target.value)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '8px 12px',
+                                                    borderRadius: '4px',
+                                                    border: '1px solid #d0d4e4',
+                                                    fontSize: '14px',
+                                                    outline: 'none'
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <button
+                                            onClick={handleAddFile}
+                                            disabled={!fileUrl.trim()}
+                                            style={{
+                                                backgroundColor: fileUrl.trim() ? '#0073ea' : '#cce5ff',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                padding: '8px 16px',
+                                                fontSize: '14px',
+                                                fontWeight: 500,
+                                                cursor: fileUrl.trim() ? 'pointer' : 'not-allowed',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}
+                                        >
+                                            <Plus size={16} /> Add Link
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {(!activeItem.files || activeItem.files.length === 0) ? (
+                            <div style={{ textAlign: 'center', color: '#888', padding: '40px', border: '1px dashed #ccc', borderRadius: '8px' }}>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <FileText size={48} opacity={0.3} />
+                                </div>
+                                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 500 }}>No files attached yet</h3>
+                                <p style={{ margin: 0, fontSize: '14px' }}>Upload files to share with your team.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+                                {activeItem.files.map((file) => (
+                                    <div key={file.id} style={{
+                                        backgroundColor: 'white',
+                                        borderRadius: '8px',
+                                        border: '1px solid #e1e4e8',
+                                        padding: '16px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '12px',
+                                        transition: 'box-shadow 0.2s',
+                                        cursor: 'pointer',
+                                        position: 'relative'
+                                    }}
+                                        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                                            <div style={{
+                                                width: '40px',
+                                                height: '40px',
+                                                backgroundColor: '#e6f4ff',
+                                                borderRadius: '8px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: '#0073ea'
+                                            }}>
+                                                <FileText size={20} />
+                                            </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const newFiles = activeItem.files?.filter(f => f.id !== file.id) || [];
+                                                    updateItemFiles(itemId, newFiles);
+                                                }}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: '#999',
+                                                    padding: '4px'
+                                                }}
+                                                title="Remove File"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 500, fontSize: '14px', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>
+                                                {file.name}
+                                            </div>
+                                            <a
+                                                href={file.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{ fontSize: '12px', color: '#0073ea', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                Open Link <ExternalLink size={10} />
+                                            </a>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
         </div>
     );
 };
-

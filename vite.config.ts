@@ -9,7 +9,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        // Manual chunks removed to fix circular dependencies
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-ui': ['framer-motion', 'lucide-react', 'clsx'],
+          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          'vendor-table': ['@tanstack/react-virtual'],
+          'vendor-utils': ['date-fns', 'uuid'],
+          'vendor-supabase': ['@supabase/supabase-js']
+        },
       },
     },
   },

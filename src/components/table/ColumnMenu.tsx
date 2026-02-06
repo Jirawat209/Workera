@@ -70,7 +70,13 @@ export const ColumnMenu = ({
             style={{
                 position: 'fixed',
                 top: position.top,
-                left: position.left,
+                left: (() => {
+                    const menuWidth = 240;
+                    if (position.left + menuWidth > window.innerWidth) {
+                        return window.innerWidth - menuWidth - 16;
+                    }
+                    return position.left;
+                })(),
                 backgroundColor: 'white',
                 borderRadius: '8px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',

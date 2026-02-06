@@ -1,42 +1,54 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Share2, Activity, X, MoreHorizontal, Star, Search, Trash2, Edit2, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBoardStore } from '../../store/useBoardStore';
 import { usePermission } from '../../hooks/usePermission';
-import { Share2 } from 'lucide-react';
+import { ActivityLogList } from '../common/ActivityLogList';
 import { ShareBoardModal } from '../workspace/ShareBoardModal';
+import { SidePanel } from '../ui/SidePanel';
 
 interface BoardHeaderProps {
     boardId: string;
 }
 
 export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
+    const { boards, updateBoard, deleteBoard, searchQuery, setSearchQuery, activeBoardMembers, activeWorkspaceId, workspaces } = useBoardStore();
+    const board = boards.find(b => b.id === boardId);
+
+    // Permission Hook
     const { can } = usePermission();
 
-    const board = useBoardStore(state => state.boards.find(b => b.id === boardId));
-    const updateBoardTitle = useBoardStore(state => state.updateBoardTitle);
-    // Share modal state
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showActivityLog, setShowActivityLog] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
 
-    // Local state for renaming
+    // Rename Logic
     const [isEditing, setIsEditing] = useState(false);
-    const [title, setTitle] = useState('');
+    const [title, setTitle] = useState(board?.title || '');
 
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Sync title when board changes (e.g. from sidebar rename)
     useEffect(() => {
         if (board) setTitle(board.title);
     }, [board?.title]);
 
-    // Close dropdown when clicking outside
-
-
-    if (!board) return null;
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleRename = () => {
-        if (title.trim()) {
-            updateBoardTitle(boardId, title);
-        } else {
-            // Revert if empty
-            setTitle(board.title);
+        if (!board) return;
+        if (title.trim() !== board.title) {
+            updateBoard(board.id, { title: title.trim() });
         }
         setIsEditing(false);
     };
@@ -44,228 +56,358 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') handleRename();
         if (e.key === 'Escape') {
-            setTitle(board.title);
+            setTitle(board?.title || '');
             setIsEditing(false);
         }
     };
 
+    const handleDeleteBoard = async () => {
+        if (!board) return;
+        if (confirm('Are you sure you want to delete this board? This action cannot be undone.')) {
+            await deleteBoard(board.id);
+            // Navigation should be handled by the store or parent, but strictly we are checking logic here
+        }
+    };
 
+    if (!board) return null;
 
-
+    // Filter members to show (unique users)
+    const uniqueMembers = Array.from(new Map(activeBoardMembers.map(m => [m.user_id, m])).values());
+    const displayMembers = uniqueMembers.slice(0, 4);
+    const remainingMembers = uniqueMembers.length - 4;
 
     return (
         <header style={{
-            minHeight: '80px', // Increased from 64px for breathing room
+            minHeight: '80px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '16px 32px', // Added vertical padding
-            backgroundColor: 'hsl(var(--color-bg-surface))',
-            borderBottom: '1px solid hsl(var(--color-border))'
+            padding: '16px 32px',
+            backgroundColor: 'hsl(var(--color-bg-subtle))', // Darkened from surface
+            borderBottom: '1px solid hsl(var(--color-border))',
+            position: 'relative'
         }}>
-            <div>
-                {isEditing ? (
-                    <input
-                        autoFocus
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        onBlur={handleRename}
-                        onKeyDown={handleKeyDown}
-                        style={{
-                            fontSize: '20px',
-                            fontWeight: 600,
-                            letterSpacing: '-0.02em',
-                            border: '1px solid hsl(var(--color-brand-primary))',
-                            borderRadius: '4px',
-                            padding: '0 4px',
-                            margin: '-1px -5px', // Adjust for border/padding to align text
-                            outline: 'none',
-                            background: 'white',
-                            color: 'hsl(var(--color-text-primary))',
-                            width: `${Math.max(title.length * 12, 100)}px`,
-                            maxWidth: '400px'
-                        }}
-                    />
-                ) : (
-                    <h1
-                        onClick={() => {
-                            if (can('create_board')) setIsEditing(true); // Using create_board as proxy for "Manage Board" owner/admin
-                        }}
-                        style={{
-                            fontSize: '20px',
-                            fontWeight: 600,
-                            letterSpacing: '-0.02em',
-                            cursor: can('create_board') ? 'pointer' : 'default',
-                            border: '1px solid transparent', // To match input height/layout prevent jump
-                            padding: '0 4px',
-                            margin: '-1px -5px'
-                        }}
-                        title={can('create_board') ? "Click to rename" : "Read only"}
-                    >
-                        {board.title}
-                    </h1>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <p style={{ fontSize: '13px', color: 'hsl(var(--color-text-tertiary))' }}>Main Table</p>
-                        <span style={{ fontSize: '10px', color: 'hsl(var(--color-border))' }}>●</span>
-                        <p style={{ fontSize: '13px', color: 'hsl(var(--color-text-tertiary))' }}>{board.items.length} items</p>
-                    </div>
-
-                    {/* Members & Owner Display */}
-                    {(() => {
-                        // FIX: Use reactive hook instead of getState() to prevent stale data
-                        const activeBoardMembers = useBoardStore(state => state.activeBoardMembers);
-                        const owner = activeBoardMembers.find(m => m.role === 'owner' || m.role === 'workspace_owner');
-                        // Filter out owner from general members list to avoid duplication
-                        // If owner is workspace_owner, they might appear as member too if logic duplicated, but usually unique by ID.
-                        const otherMembers = activeBoardMembers.filter(m => m.user_id !== owner?.user_id);
-                        const displayMembers = otherMembers.slice(0, 3);
-                        const overflowCount = otherMembers.length - 3;
-
-                        return (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid hsl(var(--color-border))', paddingLeft: '12px' }}>
-                                {/* Owner */}
-                                {owner && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} title={`Board Owner: ${owner.profiles?.full_name || owner.profiles?.email}`}>
-                                        <div style={{ position: 'relative' }}>
-                                            <div style={{
-                                                width: '24px', height: '24px', borderRadius: '50%',
-                                                backgroundColor: '#e0e7ff', overflow: 'hidden',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                fontSize: '11px', color: '#3730a3', fontWeight: 'bold',
-                                                border: '2px solid white',
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                            }}>
-                                                {owner.profiles?.avatar_url ? (
-                                                    <img src={owner.profiles.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                ) : (
-                                                    (owner.profiles?.full_name?.[0] || owner.profiles?.email?.[0] || '?').toUpperCase()
-                                                )}
-                                            </div>
-                                            <div style={{
-                                                position: 'absolute', bottom: -2, right: -2,
-                                                width: '10px', height: '10px', backgroundColor: '#fcd34d',
-                                                borderRadius: '50%', border: '1px solid white',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }} title="Owner">
-                                                <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#78350f' }}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-                                            </div>
-                                        </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                            <span style={{ fontSize: '12px', fontWeight: 500, color: 'hsl(var(--color-text-secondary))', lineHeight: 1 }}>
-                                                {owner.profiles?.full_name || 'Owner'}
-                                            </span>
-                                            <span style={{ fontSize: '9px', color: 'hsl(var(--color-text-tertiary))', marginTop: '2px' }}>
-                                                Owner
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Members Stack */}
-                                {(otherMembers.length > 0 || can('create_board')) && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', marginLeft: '8px' }}>
-                                            {displayMembers.map((m, i) => (
-                                                <div key={m.id || m.user_id} style={{
-                                                    width: '24px', height: '24px', borderRadius: '50%',
-                                                    backgroundColor: '#f3f4f6', overflow: 'hidden',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    fontSize: '10px', color: '#4b5563', fontWeight: '500',
-                                                    border: '2px solid white',
-                                                    marginLeft: '-8px', // Stack effect
-                                                    zIndex: 10 - i,
-                                                    cursor: 'pointer'
-                                                }} title={m.profiles?.full_name || m.profiles?.email}>
-                                                    {m.profiles?.avatar_url ? (
-                                                        <img src={m.profiles.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                    ) : (
-                                                        (m.profiles?.full_name?.[0] || m.profiles?.email?.[0] || '?').toUpperCase()
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {overflowCount > 0 && (
-                                                <div
-                                                    onClick={() => setShowShareModal(true)}
-                                                    style={{
-                                                        width: '24px', height: '24px', borderRadius: '50%',
-                                                        backgroundColor: '#f3f4f6',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        fontSize: '10px', color: '#6b7280', fontWeight: '500',
-                                                        border: '2px solid white',
-                                                        marginLeft: '-8px',
-                                                        zIndex: 0,
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    title={`View ${overflowCount} more`}
-                                                >
-                                                    +{overflowCount}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Add Member Button (Small) */}
-                                        {can('create_board') && (
-                                            <button
-                                                onClick={() => setShowShareModal(true)}
-                                                style={{
-                                                    width: '24px', height: '24px', borderRadius: '50%',
-                                                    backgroundColor: 'transparent',
-                                                    border: '1px dashed hsl(var(--color-border))',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    color: 'hsl(var(--color-text-tertiary))',
-                                                    cursor: 'pointer',
-                                                    marginLeft: '4px',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                title="Add member"
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
+            {/* Left Side: Title & Description */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div>
+                    {isEditing ? (
+                        <input
+                            autoFocus
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            onBlur={handleRename}
+                            onKeyDown={handleKeyDown}
+                            style={{
+                                fontSize: '24px',
+                                fontWeight: 600,
+                                letterSpacing: '-0.02em',
+                                border: '1px solid hsl(var(--color-brand-primary))',
+                                borderRadius: '4px',
+                                padding: '0 4px',
+                                outline: 'none',
+                                background: 'white',
+                                color: 'hsl(var(--color-text-primary))',
+                                minWidth: '200px'
+                            }}
+                        />
+                    ) : (
+                        <h1
+                            onClick={() => can('create_board') && setIsEditing(true)}
+                            style={{
+                                fontSize: '24px',
+                                fontWeight: 600,
+                                margin: 0,
+                                color: 'hsl(var(--color-text-primary))',
+                                cursor: can('create_board') ? 'pointer' : 'default',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}
+                        >
+                            {board.title}
+                            <Star size={16} color="hsl(var(--color-text-tertiary))" style={{ cursor: 'pointer' }} />
+                        </h1>
+                    )}
+                    <span style={{ fontSize: '14px', color: 'hsl(var(--color-text-tertiary))' }}>
+                        {workspaces.find(w => w.id === activeWorkspaceId)?.title || "Workspace"}
+                    </span>
                 </div>
             </div>
 
-            {/* Right Side: Share + Notifications + Profile */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {/* Share Button (Keep Only) */}
-                {can('create_board') && (
+            {/* Right Side: Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+
+                {/* Search / Filter */}
+                <div style={{ position: 'relative' }}>
+                    {showSearch ? (
+                        <div style={{ display: 'flex', alignItems: 'center', background: 'hsl(var(--color-bg-subtle))', borderRadius: '6px', padding: '4px 8px' }}>
+                            <Search size={14} style={{ marginRight: '6px', color: 'hsl(var(--color-text-tertiary))' }} />
+                            <input
+                                autoFocus
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search tasks..."
+                                style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    outline: 'none',
+                                    fontSize: '14px',
+                                    width: '120px'
+                                }}
+                                onBlur={() => !searchQuery && setShowSearch(false)}
+                            />
+                            <button onClick={() => { setSearchQuery(''); setShowSearch(false); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
+                                <X size={14} color="hsl(var(--color-text-tertiary))" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            className="btn-ghost"
+                            title="Search / Filter"
+                            style={{ padding: '8px' }}
+                            onClick={() => setShowSearch(true)}
+                        >
+                            <Search size={16} />
+                            <span style={{ marginLeft: '6px', fontSize: '14px' }}>Search</span>
+                        </button>
+                    )}
+                </div>
+
+                <div style={{ height: '24px', width: '1px', background: 'hsl(var(--color-border))', margin: '0 8px' }} />
+
+                {/* Members Display */}
+                <div style={{ display: 'flex', marginRight: '8px', alignItems: 'center' }}>
+                    {uniqueMembers.length > 0 ? (
+                        <>
+                            {displayMembers.map((member, index) => {
+                                const isOwner = member.role === 'owner';
+                                const profile = member.profiles || {};
+                                const name = profile.full_name || member.full_name || profile.email || member.email || '?';
+                                const avatar = profile.avatar_url || member.avatar_url;
+                                const initials = name.substring(0, 2).toUpperCase();
+
+                                return (
+                                    <div
+                                        key={member.user_id || index}
+                                        title={`${name} (${member.role})`}
+                                        style={{
+                                            width: '32px', height: '32px', borderRadius: '50%',
+                                            background: isOwner ? 'hsl(var(--color-brand-primary))' : '#9ca3af',
+                                            color: 'white',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: '12px', border: '2px solid white', marginLeft: index === 0 ? 0 : '-8px',
+                                            cursor: 'pointer',
+                                            position: 'relative',
+                                            overflow: 'hidden'
+                                        }}
+                                    >
+                                        {avatar ? (
+                                            <img
+                                                src={avatar}
+                                                alt={initials}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                        ) : (
+                                            initials
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            {remainingMembers > 0 && (
+                                <div style={{
+                                    width: '32px', height: '32px', borderRadius: '50%',
+                                    background: '#e5e7eb', color: '#6b7280',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '11px', border: '2px solid white', marginLeft: '-8px',
+                                    fontWeight: 600
+                                }}>
+                                    +{remainingMembers}
+                                </div>
+                            )}
+
+                            {/* Invitation Button (+) */}
+                            <button
+                                onClick={() => can('invite_members') && setShowShareModal(true)}
+                                style={{
+                                    width: '32px', height: '32px', borderRadius: '50%',
+                                    background: 'hsl(var(--color-bg-subtle))',
+                                    color: 'hsl(var(--color-text-secondary))',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '16px', border: '2px solid white', marginLeft: '-8px',
+                                    cursor: can('invite_members') ? 'pointer' : 'not-allowed',
+                                    zIndex: 0
+                                }}
+                                title="Invite to board"
+                            >
+                                <Plus size={16} />
+                            </button>
+                        </>
+                    ) : (
+                        <div style={{ fontSize: '12px', color: 'hsl(var(--color-text-tertiary))', fontStyle: 'italic' }}>
+                            No members
+                        </div>
+                    )}
+                </div>
+
+                {/* Activity Log */}
+                <div style={{ position: 'relative' }}>
                     <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowShareModal(true)}
+                        className="btn-ghost"
+                        onClick={() => setShowActivityLog(!showActivityLog)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         style={{
-                            padding: '6px 12px',
-                            backgroundColor: 'transparent',
-                            border: '1px solid hsl(var(--color-border))',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                            color: 'hsl(var(--color-text-primary))',
-                            transition: 'background-color 0.2s'
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            background: showActivityLog ? 'hsl(var(--color-bg-subtle))' : 'transparent',
+                            color: showActivityLog ? 'hsl(var(--color-brand-primary))' : 'hsl(var(--color-text-secondary))'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        title="Share board"
                     >
-                        <Share2 size={16} />
-                        <span>Share</span>
+                        <Activity size={16} />
                     </motion.button>
-                )}
+
+                    <SidePanel isOpen={showActivityLog} onClose={() => setShowActivityLog(false)} width="600px">
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            {/* Header matching TaskDetail styles */}
+                            <div style={{
+                                padding: '24px 32px',
+                                borderBottom: '1px solid hsl(var(--color-border))',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                justifyContent: 'space-between',
+                                backgroundColor: 'hsl(var(--color-bg-surface))',
+                                flexShrink: 0
+                            }}>
+                                <div>
+                                    <h2 style={{
+                                        margin: 0,
+                                        fontSize: '24px',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        color: 'hsl(var(--color-text-primary))'
+                                    }}>
+                                        <Activity size={24} className="text-brand-primary" />
+                                        Board Activity
+                                    </h2>
+                                    <div style={{ display: 'flex', gap: '16px', fontSize: '14px', color: 'hsl(var(--color-text-secondary))', marginTop: '8px' }}>
+                                        <span>Board: {board.title}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowActivityLog(false)}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        padding: '8px',
+                                        borderRadius: '4px',
+                                        color: 'hsl(var(--color-text-tertiary))'
+                                    }}
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 32px' }}>
+                                <ActivityLogList
+                                    scope="board"
+                                    targetId={boardId}
+                                    showHeader={false}
+                                    onClose={() => setShowActivityLog(false)}
+                                />
+                            </div>
+                        </div>
+                    </SidePanel>
+                </div>
+
+                <button
+                    onClick={() => can('invite_members') && setShowShareModal(true)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 16px',
+                        backgroundColor: 'hsl(var(--color-brand-primary))',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        cursor: can('invite_members') ? 'pointer' : 'not-allowed',
+                        opacity: can('invite_members') ? 1 : 0.7,
+                        marginLeft: '8px'
+                    }}
+                >
+                    <Share2 size={16} />
+                    Invite / Share
+                </button>
+
+                {/* More Menu */}
+                <div style={{ position: 'relative' }} ref={menuRef}>
+                    <button
+                        className="btn-ghost"
+                        style={{ padding: '8px', background: showMenu ? 'hsl(var(--color-bg-subtle))' : 'transparent' }}
+                        onClick={() => setShowMenu(!showMenu)}
+                    >
+                        <MoreHorizontal size={16} />
+                    </button>
+
+                    {showMenu && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: 0,
+                            marginTop: '8px',
+                            backgroundColor: 'hsl(var(--color-bg-surface))',
+                            border: '1px solid hsl(var(--color-border))',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                            zIndex: 100,
+                            minWidth: '160px',
+                            padding: '4px 0'
+                        }}>
+                            <button
+                                onClick={() => { setIsEditing(true); setShowMenu(false); }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    width: '100%', padding: '8px 16px',
+                                    textAlign: 'left', background: 'none', border: 'none',
+                                    fontSize: '14px', color: 'hsl(var(--color-text-primary))',
+                                    cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                                <Edit2 size={14} /> Rename
+                            </button>
+
+                            <div style={{ height: '1px', background: 'hsl(var(--color-border))', margin: '4px 0' }} />
+
+                            <button
+                                onClick={() => { handleDeleteBoard(); setShowMenu(false); }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    width: '100%', padding: '8px 16px',
+                                    textAlign: 'left', background: 'none', border: 'none',
+                                    fontSize: '14px', color: '#ef4444',
+                                    cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                                <Trash2 size={14} /> Delete Board
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Share Board Modal */}
             {showShareModal && (
                 <ShareBoardModal
                     boardId={boardId}

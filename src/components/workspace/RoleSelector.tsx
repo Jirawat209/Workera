@@ -117,6 +117,7 @@ export const RoleSelector = ({ value, onChange, disabled = false, allowedRoles }
     return (
         <>
             <button
+                type="button"
                 ref={buttonRef}
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}

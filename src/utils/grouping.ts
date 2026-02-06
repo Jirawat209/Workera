@@ -62,7 +62,7 @@ export const groupItems = (
 
 
     // Build Virtual List
-    effectiveGroups.forEach((group, groupIndex) => {
+    effectiveGroups.forEach((group, _groupIndex) => {
         const groupItems = itemsByGroup[group.id] || [];
         const isCollapsed = collapsedGroups.includes(group.id);
 
@@ -77,16 +77,14 @@ export const groupItems = (
 
         // 2. Add Content (Header + Items + Footer) ONLY if not collapsed
         if (!isCollapsed) {
-            // Header - Only show for the FIRST group
-            if (groupIndex === 0) {
-                result.push({
-                    type: 'header',
-                    id: `${group.id}-header`,
-                    data: { groupId: group.id },
-                    depth: 0,
-                    groupColor: group.color
-                });
-            }
+            // Header - Show for EVERY group (Modified per user request)
+            result.push({
+                type: 'header',
+                id: `${group.id}-header`,
+                data: { groupId: group.id },
+                depth: 0,
+                groupColor: group.color
+            });
 
             // Items
             groupItems.forEach(item => {

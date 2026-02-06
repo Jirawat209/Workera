@@ -113,8 +113,9 @@ export const MembersList = ({
             ) : (
                 members.map(member => {
                     const displayRole = getMemberDisplayRole(member);
-                    const memberName = member.profiles.full_name || member.profiles.email.split('@')[0];
-                    const initials = memberName.charAt(0).toUpperCase();
+                    const profile = member.profiles || {};
+                    const memberName = profile.full_name || (profile.email ? profile.email.split('@')[0] : 'Unknown');
+                    const initials = (memberName || '?').charAt(0).toUpperCase();
 
                     return (
                         <div
@@ -132,7 +133,7 @@ export const MembersList = ({
                                 width: '36px',
                                 height: '36px',
                                 borderRadius: '50%',
-                                backgroundColor: member.profiles.avatar_url ? 'transparent' : '#0073ea',
+                                backgroundColor: profile.avatar_url ? 'transparent' : '#0073ea',
                                 color: 'white',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -142,9 +143,9 @@ export const MembersList = ({
                                 overflow: 'hidden',
                                 flexShrink: 0
                             }}>
-                                {member.profiles.avatar_url ? (
+                                {profile.avatar_url ? (
                                     <img
-                                        src={member.profiles.avatar_url}
+                                        src={profile.avatar_url}
                                         alt={memberName}
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                     />
@@ -176,7 +177,7 @@ export const MembersList = ({
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap'
                                 }}>
-                                    {member.profiles.email}
+                                    {profile.email}
                                 </div>
                             </div>
 

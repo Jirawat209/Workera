@@ -14,10 +14,17 @@ interface RichTextEditorProps {
 export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
+
+    // Mention State
     const [mentionQuery, setMentionQuery] = useState<string | null>(null);
     const [mentionPosition, setMentionPosition] = useState<{ top: number, left: number } | null>(null);
     const [mentionRange, setMentionRange] = useState<Range | null>(null);
     const { activeBoardMembers } = useBoardStore();
+
+    // Hyperlink State
+    const [isLinkUIOpen, setIsLinkUIOpen] = useState(false);
+    const [linkData, setLinkData] = useState({ text: '', url: '' });
+    const [savedSelection, setSavedSelection] = useState<Range | null>(null);
 
     // Helper to get display name (prefer email username)
     const getDisplayName = (member: any) => {
@@ -48,8 +55,19 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         }
     }, [mentionQuery, activeBoardMembers, filteredMembers.length]);
 
-    // Sync external value to editor ONLY if different and not focused (to prevent cursor jumping)
+    const isInternalUpdate = useRef(false);
+
+    // Sync external value to editor ONLY if different and not focused
     useEffect(() => {
+        // Skip sync if Link UI is open
+        if (isLinkUIOpen) return;
+
+        // Skip sync if we just performed an internal update (to avoid race with stale props)
+        if (isInternalUpdate.current) {
+            isInternalUpdate.current = false;
+            return;
+        }
+
         if (editorRef.current && !isFocused && editorRef.current.innerHTML !== value) {
             editorRef.current.innerHTML = value;
         }
@@ -57,7 +75,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         if (editorRef.current && !value && !isFocused) {
             editorRef.current.innerHTML = '';
         }
-    }, [value, isFocused]);
+    }, [value, isFocused, isLinkUIOpen]);
 
     const exec = (command: string, value: string | undefined = undefined) => {
         document.execCommand(command, false, value);
@@ -67,6 +85,20 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 
     const handleChange = () => {
         if (editorRef.current) {
+            // Mark as internal update so useEffect doesn't revert it immediately
+            // But wait... usually handleChange is called AFTER DOM change.
+            // The issue is when we execute a command that changes DOM, then close UI (triggering effect),
+            // then parent updates prop later.
+            // Actually, for insertLink:
+            // 1. exec writes DOM.
+            // 2. call handleChange -> calls onChange(newHTML).
+            // 3. Parent schedules update.
+            // 4. closeLinkUI -> triggers effect [value=old].
+            // We want to block that specific effect run.
+
+            // For standard typing (onInput), isFocused is true, so effect is skipped anyway.
+            // The problem is insertLink closes UI and might not be "focused" in React state yet.
+
             onChange(editorRef.current.innerHTML);
             checkMention();
         }
@@ -165,6 +197,65 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         }
     };
 
+    // --- Hyperlink Handlers ---
+
+    const openLinkUI = () => {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) {
+            // If no selection, just open empty
+            setLinkData({ text: '', url: '' });
+            setIsLinkUIOpen(true);
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        setSavedSelection(range.cloneRange()); // Save range
+
+        const selectedText = range.toString();
+        // If it looks like a URL, pre-fill URL, otherwise Text
+        const isUrl = /^(http|https):\/\//.test(selectedText);
+        setLinkData({
+            text: isUrl ? '' : selectedText,
+            url: isUrl ? selectedText : ''
+        });
+
+        setIsLinkUIOpen(true);
+    };
+
+    const insertLink = () => {
+        const selection = window.getSelection();
+        if (savedSelection && selection) {
+            selection.removeAllRanges();
+            selection.addRange(savedSelection);
+        }
+
+        const { text, url } = linkData;
+        if (!url) {
+            closeLinkUI();
+            return;
+        }
+
+        const finalUrl = url.startsWith('http') ? url : `https://${url}`;
+        const displayText = text || url;
+
+        // Flag internal update to skip next sync
+        isInternalUpdate.current = true;
+
+        const html = `<a href="${finalUrl}" target="_blank" rel="noopener noreferrer" style="color: #0073ea; text-decoration: underline;">${displayText}</a>`;
+
+        exec('insertHTML', html);
+
+        closeLinkUI();
+    };
+
+    const closeLinkUI = () => {
+        setIsLinkUIOpen(false);
+        setSavedSelection(null);
+        setLinkData({ text: '', url: '' });
+        // Return focus to editor
+        editorRef.current?.focus();
+    };
+
     const tools = [
         { id: 'bold', icon: Bold, label: 'Bold', action: () => exec('bold') },
         { id: 'italic', icon: Italic, label: 'Italic', action: () => exec('italic') },
@@ -175,10 +266,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         { id: 'ol', icon: ListOrdered, label: 'Ordered List', action: () => exec('insertOrderedList') },
         { type: 'separator' },
         {
-            id: 'link', icon: Link, label: 'Link', action: () => {
-                const url = prompt('Enter URL:');
-                if (url) exec('createLink', url);
-            }
+            id: 'link', icon: Link, label: 'Link', action: () => openLinkUI()
         },
         { id: 'hr', icon: Minus, label: 'Horizontal Rule', action: () => exec('insertHorizontalRule') }
     ];
@@ -254,7 +342,10 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                 onInput={handleChange}
                 onKeyUp={(e) => {
                     // Navigate mention list TODO
-                    if (e.key === 'Escape') setMentionQuery(null);
+                    if (e.key === 'Escape') {
+                        setMentionQuery(null);
+                        closeLinkUI();
+                    }
                 }}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => {
@@ -339,6 +430,106 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                     text-decoration: underline;
                 }
             `}</style>
+                    </div>
+                )
+            }
+
+            {/* Hyperlink Popover */}
+            {
+                isLinkUIOpen && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '40px', // Below toolbar
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: 'white',
+                        border: '1px solid hsl(var(--color-border))',
+                        borderRadius: '8px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                        zIndex: 10000,
+                        padding: '16px',
+                        width: '320px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px'
+                    }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#323338', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Add Link</span>
+                            <button onClick={closeLinkUI} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#999' }}>✕</button>
+                        </div>
+
+                        <div>
+                            <label style={{ fontSize: '12px', color: '#676879', fontWeight: 500, marginBottom: '4px', display: 'block' }}>Text to display</label>
+                            <input
+                                type="text"
+                                value={linkData.text}
+                                onChange={(e) => setLinkData({ ...linkData, text: e.target.value })}
+                                placeholder="Text to display"
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #c3c6d4',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    color: '#333'
+                                }}
+                                autoFocus
+                            />
+                        </div>
+
+                        <div>
+                            <label style={{ fontSize: '12px', color: '#676879', fontWeight: 500, marginBottom: '4px', display: 'block' }}>Link address</label>
+                            <input
+                                type="text"
+                                value={linkData.url}
+                                onChange={(e) => setLinkData({ ...linkData, url: e.target.value })}
+                                placeholder="www.example.com"
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #c3c6d4',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    color: '#333'
+                                }}
+                                onKeyDown={(e) => e.key === 'Enter' && insertLink()}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                            <button
+                                onClick={closeLinkUI}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #e1e3ea',
+                                    background: 'white',
+                                    color: '#323338',
+                                    fontSize: '13px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={insertLink}
+                                style={{
+                                    padding: '6px 16px',
+                                    borderRadius: '4px',
+                                    border: 'none',
+                                    backgroundColor: '#0073ea',
+                                    color: 'white',
+                                    fontSize: '13px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Save Link
+                            </button>
+                        </div>
                     </div>
                 )
             }

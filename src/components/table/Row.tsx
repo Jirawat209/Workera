@@ -1,6 +1,7 @@
+import React, { useRef, useEffect } from 'react';
 import type { Item, Column } from '../../types';
 import { Cell } from './Cell';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, MessageSquare } from 'lucide-react';
 import { usePermission } from '../../hooks/usePermission';
 import { useBoardStore } from '../../store/useBoardStore';
 import { Check } from 'lucide-react';
@@ -23,7 +24,7 @@ const CheckboxState = ({ itemId }: { itemId: string }) => {
     );
 };
 
-export const Row = ({
+export const Row = React.memo(({
     item,
     columns,
     groupColor,
@@ -37,15 +38,39 @@ export const Row = ({
     dragHandleProps?: any
 }) => {
     const { can } = usePermission();
+    const rowRef = useRef<HTMLDivElement>(null);
+    const highlightedItemId = useBoardStore(state => state.highlightedItemId);
+    // Local state for flash animation - Disabled for now as per user request
+    // const [isFlashing, setIsFlashing] = useState(false);
+
+    useEffect(() => {
+        if (highlightedItemId === item.id && rowRef.current) {
+            rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // setIsFlashing(true); // Disabled highlight visuals
+
+            // Clear highlights immediately after scroll action is acknowledged
+            const timer = setTimeout(() => {
+                // setIsFlashing(false);
+                useBoardStore.getState().setHighlightedItem(null);
+            }, 1000); // 1s reset
+            return () => clearTimeout(timer);
+        }
+    }, [highlightedItemId, item.id]);
+
+    const isSelected = useBoardStore(state => state.selectedItemIds.includes(item.id));
+    // const isHighlighted = highlightedItemId === item.id; // Disabled
 
     return (
-        <div className="table-row" style={{
+        <div ref={rowRef} className={`table-row ${isSelected ? 'selected' : ''}`} style={{
             height: '100%',
             position: 'relative',
             display: 'flex',
             borderBottom: '1px solid hsl(var(--color-border-hover))',
-            opacity: item.isHidden ? 0.5 : 1, // Visual indication for hidden items
-            backgroundColor: item.isHidden ? 'hsl(var(--color-bg-subtle))' : 'transparent'
+            opacity: item.isHidden ? 0.5 : 1,
+            backgroundColor: isSelected
+                ? 'hsl(var(--color-brand-primary-subtle))'
+                : (item.isHidden ? 'hsl(var(--color-bg-subtle))' : 'transparent'),
+            transition: 'background-color 0.5s ease'
         }}>
             {/* Visual Left Border */}
             {groupColor && (
@@ -66,7 +91,7 @@ export const Row = ({
                 position: 'sticky',
                 left: 0,
                 zIndex: 5,
-                backgroundColor: item.isHidden ? 'hsl(var(--color-bg-subtle))' : 'hsl(var(--color-bg-surface))', // Match row bg
+                backgroundColor: isSelected ? 'hsl(var(--color-brand-primary-subtle))' : (item.isHidden ? 'hsl(var(--color-bg-subtle))' : '#fff'),
                 borderRight: '1px solid hsl(var(--color-border))',
                 paddingLeft: groupColor ? '18px' : '8px',
                 display: 'flex',
@@ -133,7 +158,7 @@ export const Row = ({
                             const val = e.target.value.trim();
                             if (val && val !== item.title) {
                                 import('../../store/useBoardStore').then(({ useBoardStore }) => {
-                                    useBoardStore.getState().updateItemTitle(item.id, val);
+                                    useBoardStore.getState().updateItemTitle(item.id, val, true);
                                 });
                             } else {
                                 // Reset if empty
@@ -160,74 +185,86 @@ export const Row = ({
                         }}
                     />
 
-                    {/* Open Button (Visible on Hover) */}
-                    <div
-                        className="open-btn"
-                        onClick={() => {
-                            import('../../store/useBoardStore').then(({ useBoardStore }) => {
-                                useBoardStore.getState().setActiveItem(item.id);
-                            });
-                        }}
-                        title="Open Task Page"
-                        style={{
-                            position: 'absolute',
-                            right: '0',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            backgroundColor: 'white',
-                            border: '1px solid hsl(var(--color-border))',
-                            borderRadius: '4px',
-                            padding: '4px',
-                            display: 'flex', // Hidden by default via CSS
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            opacity: 0,
-                            transition: 'opacity 0.2s',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}
-                    >
-                        <span style={{ fontSize: '10px', color: 'hsl(var(--color-text-secondary))', fontWeight: 600 }}>Open</span>
-                        {/* Or maximize icon */}
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '4px' }}>
-                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                        </svg>
+                </div>
+
+                {/* Chat/Open Icon (Always Visible) - Moved outside overflow container */}
+                <div
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        import('../../store/useBoardStore').then(({ useBoardStore }) => {
+                            useBoardStore.getState().setActiveItem(item.id);
+                        });
+                    }}
+                    title="Open Updates"
+                    style={{
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '4px',
+                        // Blue if updates, else gray
+                        color: (item.updates && item.updates.length > 0) ? 'hsl(var(--color-brand-primary))' : 'hsl(var(--color-text-tertiary))',
+                        transition: 'background-color 0.2s, color 0.2s',
+                        zIndex: 10,
+                        flexShrink: 0, // Prevent shrinking
+                        marginRight: '8px' // Right spacing
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))';
+                        if (!item.updates?.length) e.currentTarget.style.color = 'hsl(var(--color-brand-primary))';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        if (!item.updates?.length) e.currentTarget.style.color = 'hsl(var(--color-text-tertiary))';
+                    }}
+                >
+                    <div style={{ position: 'relative', display: 'flex' }}>
+                        <MessageSquare size={18} />
+
+                        {/* Update Count Badge */}
+                        {item.updates && item.updates.length > 0 && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '-4px', // Adjusted top
+                                right: '-4px', // Adjusted right to be closer
+                                backgroundColor: 'hsl(var(--color-brand-primary))',
+                                color: 'white',
+                                fontSize: '8px', // Smaller font
+                                fontWeight: 700,
+                                width: '12px', // Fixed equal width
+                                height: '12px', // Fixed equal height
+                                borderRadius: '50%', // Perfect Circle
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '2px solid white',
+                                boxSizing: 'content-box',
+                                zIndex: 20,
+                                lineHeight: '1' // Center vertically
+                            }}>
+                                {item.updates.length}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Comment Count Bubble (if any) */}
-                {Array.isArray(item.updates) && item.updates.filter(u => typeof u === 'object' && u?.id).length > 0 && (
-                    <div
-                        onClick={() => {
-                            import('../../store/useBoardStore').then(({ useBoardStore }) => {
-                                useBoardStore.getState().setActiveItem(item.id);
-                            });
-                        }}
-                        style={{
-                            marginLeft: '4px',
-                            backgroundColor: 'hsl(var(--color-brand-primary))',
-                            color: 'white',
-                            fontSize: '10px',
-                            padding: '2px 6px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            flexShrink: 0
-                        }}>
-                        {item.updates.filter(u => typeof u === 'object' && u?.id).length}
-                    </div>
-                )}
+
             </div>
 
-            {columns.map((col) => (
-                <div key={col.id} style={{
-                    width: `${col.width || 150}px`,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                }}>
-                    <Cell item={item} column={col} />
-                </div>
-            ))}
+            {
+                columns.map((col) => (
+                    <div key={col.id} style={{
+                        width: `${col.width || 150}px`,
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        <Cell item={item} column={col} />
+                    </div>
+                ))
+            }
 
             <div className="table-cell" style={{ width: '50px' }}></div>
 
@@ -243,4 +280,4 @@ export const Row = ({
             `}</style>
         </div>
     );
-};
+});

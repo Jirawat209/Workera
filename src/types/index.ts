@@ -1,9 +1,16 @@
-export type ColumnType = 'text' | 'status' | 'date' | 'number' | 'dropdown' | 'checkbox' | 'link' | 'people';
+export type ColumnType = 'text' | 'long_text' | 'status' | 'date' | 'number' | 'dropdown' | 'checkbox' | 'link' | 'people' | 'timeline' | 'files';
 
 export interface ColumnOption {
     id: string;
     label: string;
     color: string;
+}
+
+export interface FileLink {
+    id: string;
+    name: string;
+    url: string;
+    type: 'google-drive'; // Prepared for future expansion
 }
 
 export interface Column {
@@ -51,8 +58,10 @@ export interface Item {
     boardId: string; // Link to Board
     values: ItemValue;
     updates?: Comment[]; // For Task Sidebar
+    files?: FileLink[]; // For Task Sidebar Files Tab
     isHidden?: boolean;
     order?: number;
+    createdAt?: string;
 }
 
 export interface SortState {

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Type, Users, Calendar, CheckSquare, Hash, Link2, ArrowDownCircle, PieChart } from 'lucide-react';
+import { Type, Users, Calendar, CheckSquare, Hash, Link2, ArrowDownCircle, PieChart, CalendarRange, FileText } from 'lucide-react';
 
 interface AddColumnMenuProps {
-    onSelect: (type: 'text' | 'status' | 'date' | 'number' | 'dropdown' | 'checkbox' | 'link' | 'people') => void;
+    onSelect: (type: 'text' | 'status' | 'date' | 'number' | 'dropdown' | 'checkbox' | 'link' | 'people' | 'timeline' | 'files') => void;
     onClose: () => void;
     position: { top: number; bottom: number; left: number };
 }
@@ -26,11 +26,13 @@ export const AddColumnMenu = ({ onSelect, onClose, position }: AddColumnMenuProp
         { id: 'status', label: 'Status', icon: PieChart, color: '#00c875' },
         { id: 'text', label: 'Text', icon: Type, color: '#ffcb00' },
         { id: 'people', label: 'People', icon: Users, color: '#579bfc' },
+        { id: 'timeline', label: 'Timeline', icon: CalendarRange, color: '#FF158a' },
         { id: 'dropdown', label: 'Dropdown', icon: ArrowDownCircle, color: '#00c875' },
         { id: 'date', label: 'Date', icon: Calendar, color: '#a25ddc' },
         { id: 'number', label: 'Numbers', icon: Hash, color: '#ffcb00' },
         { id: 'checkbox', label: 'Checkbox', color: '#579bfc', icon: CheckSquare },
         { id: 'link', label: 'Link', icon: Link2, color: '#579bfc' },
+        { id: 'files', label: 'Files', icon: FileText, color: '#0073ea' },
     ];
 
     return createPortal(

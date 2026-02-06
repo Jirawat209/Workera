@@ -1,25 +1,25 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { slugify } from './lib/utils';
 import { Sidebar } from './components/board/Sidebar'
-import { BoardHeader } from './components/board/BoardHeader';
+// BoardHeader, Table, BatchActionsBar moved to BoardPage lazy chunk
 import { useBoardStore } from './store/useBoardStore'
-import { Table } from './components/table/Table'
 import { useUserStore } from './store/useUserStore';
 
 
 import { SidePanel } from './components/ui/SidePanel';
 import { TaskDetail } from './components/task/TaskDetail';
-import { BatchActionsBar } from './components/table/BatchActionsBar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { supabase } from './lib/supabase';
 
-import { HomePage } from './pages/HomePage';
+// HomePage moved to lazy
 import { TopBar } from './components/layout/TopBar';
 
 // Lazy load heavy pages to reduce initial bundle size
 const NotificationPage = lazy(() => import('./pages/NotificationPage').then(m => ({ default: m.NotificationPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const BoardPage = lazy(() => import('./pages/BoardPage').then(m => ({ default: m.BoardPage })));
+const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
 
 // Loading fallback component
 function PageLoader() {
@@ -246,15 +246,14 @@ function MainApp() {
             <NotificationPage />
           </Suspense>
         ) : activePage === 'board' && activeBoard ? (
-          <>
-            <BoardHeader boardId={activeBoard.id} />
-            <div style={{ flex: 1, overflow: 'hidden', padding: '0', display: 'flex', flexDirection: 'column' }}>
-              <Table boardId={activeBoard.id} />
-            </div>
-          </>
+          <Suspense fallback={<PageLoader />}>
+            <BoardPage />
+          </Suspense>
         ) : (
           <div style={{ flex: 1, overflow: 'auto' }}>
-            <HomePage />
+            <Suspense fallback={<PageLoader />}>
+              <HomePage />
+            </Suspense>
           </div>
         )}
 
@@ -263,7 +262,7 @@ function MainApp() {
           {activeItemId && <TaskDetail itemId={activeItemId} onClose={() => setActiveItem(null)} />}
         </SidePanel>
 
-        <BatchActionsBar />
+        {/* BatchActionsBar moved to BoardPage */}
       </main>
     </div>
   )
@@ -295,5 +294,4 @@ function App() {
   );
 }
 
-export default App; // Ensure export exists
-
+export default App;

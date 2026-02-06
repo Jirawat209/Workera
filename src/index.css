@@ -64,3 +64,48 @@ button:focus-visible {
     transform: rotate(360deg);
   }
 }
+
+@keyframes flash-highlight {
+  0% {
+    background-color: transparent;
+  }
+
+  25% {
+    background-color: rgba(59, 130, 246, 0.5) !important;
+    box-shadow: 0 0 0 2px hsl(217, 91%, 50%) inset !important;
+  }
+
+  50% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  75% {
+    background-color: rgba(59, 130, 246, 0.5) !important;
+    box-shadow: 0 0 0 2px hsl(217, 91%, 50%) inset !important;
+  }
+
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.table-row.selected {
+  background-color: hsl(var(--color-brand-primary-subtle)) !important;
+}
+
+.row-flash {
+  position: relative;
+}
+
+.row-flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 9999 !important;
+  /* Extremely high z-index to overlay sticky columns */
+  pointer-events: none;
+  /* Let clicks pass through */
+  animation: flash-highlight 1.5s ease-in-out forwards;
+}

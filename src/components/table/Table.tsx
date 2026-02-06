@@ -180,6 +180,20 @@ export const Table = ({ boardId }: { boardId: string }) => {
         rowVirtualizer.measure();
     }, [virtualItems, rowVirtualizer]);
 
+    // SCROLL TO HIGHLIGHTED ITEM
+    const highlightedItemId = useBoardStore(state => state.highlightedItemId);
+
+    useEffect(() => {
+        if (highlightedItemId) {
+            const index = virtualItems.findIndex(i => i.id === highlightedItemId);
+            if (index !== -1) {
+                rowVirtualizer.scrollToIndex(index, { align: 'center', behavior: 'smooth' });
+                // We rely on Row.tsx to handle the flashing class, 
+                // IF the row is rendered.
+            }
+        }
+    }, [highlightedItemId, virtualItems, rowVirtualizer]);
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {

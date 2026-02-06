@@ -1,0 +1,98 @@
+
+import React, { useRef, useState } from 'react';
+import type { Item, Column } from '../../../types';
+import { useBoardStore } from '../../../store/useBoardStore';
+import { usePermission } from '../../../hooks/usePermission';
+import { DropdownPicker } from '../DropdownPicker';
+
+interface DropdownCellProps {
+    item: Item;
+    column: Column;
+}
+
+export const DropdownCell: React.FC<DropdownCellProps> = ({ item, column }) => {
+    const value = item.values[column.id];
+    const updateItemValue = useBoardStore(state => state.updateItemValue);
+    const { can } = usePermission();
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [pickerPos, setPickerPos] = useState<{ top: number, bottom: number, left: number, width: number } | null>(null);
+    const cellRef = useRef<HTMLDivElement>(null);
+
+    const selectedLabels = Array.isArray(value) ? value : (value ? [value] : []);
+
+    const startEditing = () => {
+        if (!can('edit_items')) return;
+        setIsEditing(true);
+        if (cellRef.current) {
+            const rect = cellRef.current.getBoundingClientRect();
+            setPickerPos({
+                top: rect.top,
+                bottom: rect.bottom,
+                left: rect.left,
+                width: rect.width
+            });
+        }
+    };
+
+    return (
+        <>
+            <div
+                ref={cellRef}
+                className="table-cell"
+                onClick={() => !isEditing && startEditing()}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRight: '1px solid hsl(var(--color-cell-border))',
+                    padding: '4px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    flexWrap: 'nowrap',
+                    justifyContent: selectedLabels.length > 0 ? 'flex-start' : 'center'
+                }}
+            >
+                {selectedLabels.length > 0 ? (
+                    selectedLabels.map((label: string, idx: number) => {
+                        const options = Array.isArray(column.options) ? column.options : [];
+                        const opt = options.find(o => o.label === label);
+                        return (
+                            <div key={idx} style={{
+                                backgroundColor: opt?.color || '#a0c4ff',
+                                color: '#fff',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                whiteSpace: 'nowrap'
+                            }}>
+                                {label}
+                            </div>
+                        );
+                    })
+                ) : (
+                    <span style={{ color: 'hsl(var(--color-text-tertiary))', fontSize: '12px' }}>+</span>
+                )}
+            </div>
+
+            {isEditing && pickerPos && (
+                <DropdownPicker
+                    columnId={column.id}
+                    options={column.options || []}
+                    currentValue={selectedLabels}
+                    position={pickerPos}
+                    onSelect={(newValues) => {
+                        updateItemValue(item.id, column.id, newValues);
+                    }}
+                    onClose={() => {
+                        setIsEditing(false);
+                        setPickerPos(null);
+                    }}
+                />
+            )}
+        </>
+    );
+};
