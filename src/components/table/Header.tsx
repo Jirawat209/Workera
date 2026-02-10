@@ -164,6 +164,9 @@ export const Header = ({ columns, groupColor }: { columns: Column[], groupColor?
     const [showAddMenu, setShowAddMenu] = React.useState(false);
     const addBtnRef = React.useRef<HTMLButtonElement>(null);
 
+    const [insertColIndex, setInsertColIndex] = React.useState<number | null>(null);
+    const [addMenuPos, setAddMenuPos] = React.useState<{ top: number, bottom: number, left: number } | null>(null);
+
     // Dnd Sensors
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -212,10 +215,16 @@ export const Header = ({ columns, groupColor }: { columns: Column[], groupColor?
             'number': 'Numbers',
             'people': 'Person',
             'checkbox': 'Check',
+            'timeline': 'Timeline',
+            'files': 'Files',
+            'link': 'Link',
+            'dropdown': 'Dropdown'
         };
         const newTitle = typeMap[type] || "New Column";
-        addColumn(newTitle, type === 'people' ? 'text' : type);
+        addColumn(newTitle, type === 'people' ? 'text' : type, insertColIndex !== null ? insertColIndex : undefined);
         setShowAddMenu(false);
+        setInsertColIndex(null);
+        setAddMenuPos(null);
     };
 
     const updateBoardItemColumnTitle = useBoardStore(state => state.updateBoardItemColumnTitle);
@@ -425,7 +434,10 @@ export const Header = ({ columns, groupColor }: { columns: Column[], groupColor?
                         onDuplicate={() => duplicateColumn(activeMenuColId!)}
                         onAddRight={() => {
                             const idx = columns.findIndex(c => c.id === activeMenuColId);
-                            addColumn("New Column", "text", idx + 1);
+                            setInsertColIndex(idx + 1);
+                            setAddMenuPos({ top: menuPos.top, bottom: menuPos.top, left: menuPos.left });
+                            setShowAddMenu(true);
+                            setActiveMenuColId(null);
                         }}
                         onRename={() => startEditing(activeMenuColumn)}
                         onDelete={() => setConfirmDeleteColId(activeMenuColId!)}
@@ -451,21 +463,29 @@ export const Header = ({ columns, groupColor }: { columns: Column[], groupColor?
                         <button
                             ref={addBtnRef}
                             className="icon-btn"
-                            onClick={() => setShowAddMenu(true)}
+                            onClick={() => {
+                                setShowAddMenu(true);
+                                setInsertColIndex(null); // Default to end
+                                setAddMenuPos(null); // Use button ref
+                            }}
                             title="Add Column"
                             style={{ width: '100%', height: '100%', borderRadius: 0 }}
                         >
                             <Plus size={16} />
                         </button>
-                        {showAddMenu && addBtnRef.current && (
+                        {showAddMenu && (
                             <AddColumnMenu
                                 onSelect={handleAddColumn}
-                                onClose={() => setShowAddMenu(false)}
-                                position={{
+                                onClose={() => {
+                                    setShowAddMenu(false);
+                                    setInsertColIndex(null);
+                                    setAddMenuPos(null);
+                                }}
+                                position={addMenuPos || (addBtnRef.current ? {
                                     top: addBtnRef.current.getBoundingClientRect().top,
                                     bottom: addBtnRef.current.getBoundingClientRect().bottom,
                                     left: addBtnRef.current.getBoundingClientRect().left
-                                }}
+                                } : { top: 0, bottom: 0, left: 0 })}
                             />
                         )}
                     </div>

@@ -77,15 +77,15 @@ export const ColumnMenu = ({
                     }
                     return position.left;
                 })(),
-                backgroundColor: 'white',
+                backgroundColor: 'hsl(var(--color-bg-surface))',
                 borderRadius: '8px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                border: '1px solid #e1e4e8',
+                border: '1px solid hsl(var(--color-border))',
                 zIndex: 9999,
                 width: '240px',
                 padding: '8px 0',
                 fontSize: '14px',
-                color: '#323338'
+                color: 'hsl(var(--color-text-primary))'
             }}
         >
             <div className="menu-group">
@@ -194,8 +194,8 @@ const MenuItem = ({ icon, label, onClick, disabled, danger, active }: MenuItemPr
                 alignItems: 'center',
                 padding: '8px 16px',
                 cursor: disabled ? 'not-allowed' : 'pointer',
-                backgroundColor: (!disabled && isHovered) ? '#f5f6f8' : (active ? '#e3f2fd' : 'transparent'),
-                color: disabled ? '#d0d4e4' : (danger ? '#e2445c' : '#323338'),
+                backgroundColor: (!disabled && isHovered) ? 'hsl(var(--color-bg-surface-hover))' : (active ? 'hsl(var(--color-brand-light))' : 'transparent'),
+                color: disabled ? 'hsl(var(--color-text-tertiary))' : (danger ? 'hsl(var(--color-status-red-bg))' : 'hsl(var(--color-text-primary))'),
                 transition: 'background-color 0.1s'
             }}
         >

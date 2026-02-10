@@ -26,7 +26,7 @@ export const BatchActionsBar = () => {
             bottom: '32px',
             left: '50%',
             transform: 'translateX(-50%)',
-            backgroundColor: 'white',
+            backgroundColor: 'hsl(var(--color-bg-surface))',
             borderRadius: '8px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
             padding: '8px 16px',
@@ -34,7 +34,7 @@ export const BatchActionsBar = () => {
             alignItems: 'center',
             gap: '24px', // Spacing between sections
             zIndex: 1000,
-            border: '1px solid #e6e9ef',
+            border: '1px solid hsl(var(--color-border))',
             minWidth: '600px',
             justifyContent: 'space-between'
         }}>
@@ -54,7 +54,7 @@ export const BatchActionsBar = () => {
                 }}>
                     {selectedItemIds.length}
                 </div>
-                <span style={{ fontWeight: 600, fontSize: '14px', color: '#323338' }}>Tasks selected</span>
+                <span style={{ fontWeight: 600, fontSize: '14px', color: 'hsl(var(--color-text-primary))' }}>Tasks selected</span>
             </div>
 
             {/* Center: Actions */}
@@ -70,8 +70,8 @@ export const BatchActionsBar = () => {
                     }}
                     style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px', borderRadius: '4px' }}
                 >
-                    <Copy size={16} color="#676879" />
-                    <span style={{ fontSize: '12px', color: '#676879' }}>Duplicate</span>
+                    <Copy size={16} color="hsl(var(--color-text-secondary))" />
+                    <span style={{ fontSize: '12px', color: 'hsl(var(--color-text-secondary))' }}>Duplicate</span>
                 </div>
 
                 <div
@@ -85,8 +85,8 @@ export const BatchActionsBar = () => {
                     }}
                     style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px', borderRadius: '4px' }}
                 >
-                    {showHiddenItems ? <Eye size={16} color="#676879" /> : <EyeOff size={16} color="#676879" />}
-                    <span style={{ fontSize: '12px', color: '#676879' }}>{showHiddenItems ? 'Unhide' : 'Hide'}</span>
+                    {showHiddenItems ? <Eye size={16} color="hsl(var(--color-text-secondary))" /> : <EyeOff size={16} color="hsl(var(--color-text-secondary))" />}
+                    <span style={{ fontSize: '12px', color: 'hsl(var(--color-text-secondary))' }}>{showHiddenItems ? 'Unhide' : 'Hide'}</span>
                 </div>
 
                 <div
@@ -94,8 +94,8 @@ export const BatchActionsBar = () => {
                     onClick={deleteSelectedItems}
                     style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px', borderRadius: '4px' }}
                 >
-                    <Trash2 size={16} color="#676879" />
-                    <span style={{ fontSize: '12px', color: '#676879' }}>Delete</span>
+                    <Trash2 size={16} color="hsl(var(--color-text-secondary))" />
+                    <span style={{ fontSize: '12px', color: 'hsl(var(--color-text-secondary))' }}>Delete</span>
                 </div>
 
                 <div
@@ -103,8 +103,8 @@ export const BatchActionsBar = () => {
                     onClick={() => setShowMoveMenu(!showMoveMenu)}
                     style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px', borderRadius: '4px', position: 'relative' }}
                 >
-                    <LayoutDashboard size={16} color="#676879" />
-                    <span style={{ fontSize: '12px', color: '#676879' }}>Move to</span>
+                    <LayoutDashboard size={16} color="hsl(var(--color-text-secondary))" />
+                    <span style={{ fontSize: '12px', color: 'hsl(var(--color-text-secondary))' }}>Move to</span>
 
                     {showMoveMenu && activeBoard && (
                         <div style={{
@@ -113,14 +113,14 @@ export const BatchActionsBar = () => {
                             left: '50%',
                             transform: 'translateX(-50%)',
                             marginBottom: '12px', // gap
-                            backgroundColor: 'white',
+                            backgroundColor: 'hsl(var(--color-bg-surface))',
                             borderRadius: '8px',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                             padding: '4px',
                             minWidth: '180px',
-                            border: '1px solid #e6e9ef'
+                            border: '1px solid hsl(var(--color-border))'
                         }} onClick={e => e.stopPropagation()}>
-                            <div style={{ padding: '4px 8px', fontSize: '12px', color: '#676879', fontWeight: 600 }}>Select Group</div>
+                            <div style={{ padding: '4px 8px', fontSize: '12px', color: 'hsl(var(--color-text-secondary))', fontWeight: 600 }}>Select Group</div>
                             {activeBoard.groups.map(g => (
                                 <div
                                     key={g.id}
@@ -135,7 +135,8 @@ export const BatchActionsBar = () => {
                                         borderRadius: '4px',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '8px'
+                                        gap: '8px',
+                                        color: 'hsl(var(--color-text-primary))'
                                     }}
                                     className="menu-item"
                                 >
@@ -150,18 +151,21 @@ export const BatchActionsBar = () => {
 
             {/* Right: Close */}
             <button onClick={clearSelection} style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}>
-                <X size={20} color="#676879" />
+                <X size={20} color="hsl(var(--color-text-secondary))" />
             </button>
 
             <style>{`
                 .batch-action-btn:hover {
-                    background-color: #f5f6f8;
+                    background-color: hsl(var(--color-bg-hover));
                 }
                 .batch-action-btn:hover svg {
-                    color: #323338 !important;
+                    color: hsl(var(--color-text-primary)) !important;
                 }
                 .batch-action-btn:hover span {
-                    color: #323338 !important;
+                    color: hsl(var(--color-text-primary)) !important;
+                }
+                .menu-item:hover {
+                    background-color: hsl(var(--color-bg-hover));
                 }
             `}</style>
         </div>

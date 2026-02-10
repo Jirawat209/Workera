@@ -173,8 +173,8 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                             <div
                                 className={clsx('tree-node-parent', { expanded: isExpanded, active: isActive })}
                                 style={{
-                                    backgroundColor: isActive ? '#f0f3ff' : 'transparent',
-                                    color: isActive ? '#0073ea' : '#323338',
+                                    backgroundColor: isActive ? 'hsl(var(--color-brand-light))' : 'transparent',
+                                    color: isActive ? 'hsl(var(--color-brand-primary))' : 'hsl(var(--color-text-primary))',
                                 }}
                                 onClick={() => {
                                     toggleWorkspace(ws.id);
@@ -293,7 +293,7 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                                             ) : (
                                                 <div
                                                     className="tree-sidebar-item"
-                                                    style={{ color: '#0073ea', opacity: 0.8 }}
+                                                    style={{ color: 'hsl(var(--color-brand-primary))', opacity: 0.8 }}
                                                     onClick={() => {
                                                         setActiveWorkspace(ws.id);
                                                         setCreatingBoardInWorkspaceId(ws.id);
@@ -312,7 +312,7 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                 })}
 
                 {filteredWorkspaces.length === 0 && (
-                    <div style={{ padding: '32px 16px', textAlign: 'center', color: '#676879', fontSize: '13px' }}>
+                    <div style={{ padding: '32px 16px', textAlign: 'center', color: 'hsl(var(--color-text-secondary))', fontSize: '13px' }}>
                         No workspaces found
                     </div>
                 )}
@@ -361,13 +361,14 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                                 left: '100%',
                                 top: 0,
                                 width: '180px',
-                                backgroundColor: 'white',
+                                backgroundColor: 'hsl(var(--color-bg-surface))',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                 borderRadius: '4px',
                                 padding: '4px',
                                 marginLeft: '4px',
                                 maxHeight: '200px',
-                                overflowY: 'auto'
+                                overflowY: 'auto',
+                                border: '1px solid hsl(var(--color-border))'
                             }}>
                                 {allAccessibleWorkspaces.map(ws => (
                                     <div
@@ -404,13 +405,14 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                                 left: '100%',
                                 top: 0,
                                 width: '180px',
-                                backgroundColor: 'white',
+                                backgroundColor: 'hsl(var(--color-bg-surface))',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                 borderRadius: '4px',
                                 padding: '4px',
                                 marginLeft: '4px',
                                 maxHeight: '200px',
-                                overflowY: 'auto'
+                                overflowY: 'auto',
+                                border: '1px solid hsl(var(--color-border))'
                             }}>
                                 {allAccessibleWorkspaces.map(ws => (
                                     <div
@@ -445,12 +447,13 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                     position: 'fixed',
                     top: menuPosition.top,
                     left: menuPosition.left,
-                    backgroundColor: 'white',
+                    backgroundColor: 'hsl(var(--color-bg-surface))',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     borderRadius: '4px',
                     padding: '4px',
                     zIndex: 9999,
-                    width: '180px'
+                    width: '180px',
+                    border: '1px solid hsl(var(--color-border))'
                 }} onClick={(e) => e.stopPropagation()}>
                     <div className="menu-item" onClick={() => {
                         setShareWorkspaceId(activeWorkspaceMenu);
@@ -517,13 +520,13 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                 .action-icon {
                     opacity: 0;
                     margin-left: auto;
-                    color: #676879;
+                    color: hsl(var(--color-text-secondary));
                     border-radius: 4px;
                     padding: 2px;
                 }
                 .action-icon:hover {
-                    background-color: rgba(0,0,0,0.05);
-                    color: #323338;
+                    background-color: hsl(var(--color-bg-hover));
+                    color: hsl(var(--color-text-primary));
                 }
                 .context-menu {
                     display: flex;
@@ -537,17 +540,17 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                     padding: 8px;
                     cursor: pointer;
                     font-size: 13px;
-                    color: #323338;
+                    color: hsl(var(--color-text-primary));
                     border-radius: 4px;
                 }
                 .menu-item:hover {
-                    background-color: #f5f6f8;
+                    background-color: hsl(var(--color-bg-hover));
                 }
                 .menu-item.delete {
-                    color: #e2445c;
+                    color: hsl(var(--color-dangerous));
                 }
                 .menu-item.delete:hover {
-                    background-color: #fff0f0;
+                    background-color: hsl(var(--color-dangerous-subtle));
                 }
             `}</style>
         </div>

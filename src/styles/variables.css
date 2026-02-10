@@ -2,23 +2,29 @@
   /* Monday.com Light Mode Inspired */
 
   /* Primary Brand (Bright Blue) */
-  --color-brand-primary: 211 100% 50%; /* #0085FF */
+  --color-brand-primary: 211 100% 50%;
+  /* #0085FF */
   --color-brand-hover: 211 100% 45%;
   --color-brand-light: 211 100% 96%;
 
   /* Backgrounds */
-  --color-bg-canvas: 0 0% 100%; /* #FFFFFF - Main Background */
-  --color-bg-surface: 220 14% 96%; /* #F5F6F8 - Sidebar/Header/Cards */
+  --color-bg-canvas: 0 0% 100%;
+  /* #FFFFFF - Main Background */
+  --color-bg-surface: 220 14% 96%;
+  /* #F5F6F8 - Sidebar/Header/Cards */
   --color-bg-surface-hover: 220 14% 92%;
   --color-bg-subtle: 220 14% 96%;
 
   /* Text */
-  --color-text-primary: 230 8% 21%; /* #323338 - Main Text */
-  --color-text-secondary: 237 8% 44%; /* #676879 - Secondary */
+  --color-text-primary: 230 8% 21%;
+  /* #323338 - Main Text */
+  --color-text-secondary: 237 8% 44%;
+  /* #676879 - Secondary */
   --color-text-tertiary: 237 8% 60%;
 
   /* Borders */
-  --color-border: 220 13% 91%; /* #E6E9EF */
+  --color-border: 220 13% 91%;
+  /* #E6E9EF */
   --color-border-hover: 220 13% 85%;
 
   /* Table specific */
@@ -27,11 +33,14 @@
   --color-group-header-bg: 0 0% 100%;
 
   /* Status Colors (Vibrant) */
-  --color-status-green-bg: 155 100% 39%; /* #00C875 */
+  --color-status-green-bg: 155 100% 39%;
+  /* #00C875 */
   --color-status-green-text: 0 0% 100%;
-  --color-status-red-bg: 351 77% 58%; /* #E2445C */
+  --color-status-red-bg: 351 77% 58%;
+  /* #E2445C */
   --color-status-red-text: 0 0% 100%;
-  --color-status-gray-bg: 0 0% 77%; /* #C4C4C4 */
+  --color-status-gray-bg: 0 0% 77%;
+  /* #C4C4C4 */
   --color-status-gray-text: 0 0% 100%;
 
   /* Shadows */
@@ -55,4 +64,38 @@
   --font-size-md: 14px;
   --font-size-lg: 16px;
   --font-size-xl: 18px;
+}
+
+[data-theme='dark'] {
+  /* Dark Mode Palette */
+
+  /* Backgrounds */
+  --color-bg-canvas: 220 13% 18%;
+  /* #292f4c - Main Background (Dark Blue/Gray) */
+  --color-bg-surface: 220 13% 22%;
+  /* #313752 - Surface */
+  --color-bg-surface-hover: 220 13% 26%;
+  --color-bg-subtle: 220 13% 22%;
+
+  /* Text */
+  --color-text-primary: 0 0% 100%;
+  /* #FFFFFF */
+  --color-text-secondary: 220 13% 70%;
+  /* #B0B5C6 */
+  --color-text-tertiary: 220 13% 50%;
+
+  /* Borders */
+  --color-border: 220 13% 30%;
+  /* Darker Border */
+  --color-border-hover: 220 13% 40%;
+  --color-cell-border: 220 13% 30%;
+
+  /* Table specific */
+  --color-table-header-bg: 220 13% 20%;
+  --color-group-header-bg: 220 13% 22%;
+  /* Match surface */
+
+  /* Brand Adjustments for Dark Mode */
+  --color-brand-light: 211 100% 25%;
+  /* Darker blue bg for brand highlights */
 }

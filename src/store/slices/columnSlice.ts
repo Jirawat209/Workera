@@ -117,7 +117,69 @@ export const createColumnSlice: StateCreator<
         });
     },
 
-    duplicateColumn: () => { /* TODO */ },
+    duplicateColumn: async (columnId) => {
+        const { activeBoardId } = get();
+        if (!activeBoardId) return;
+
+        const board = get().boards.find(b => b.id === activeBoardId);
+        if (!board) return;
+
+        const sourceCol = board.columns.find(c => c.id === columnId);
+        if (!sourceCol) return;
+
+        const newColId = uuidv4();
+        // Deep copy options with new IDs
+        const newOptions = (Array.isArray(sourceCol.options) ? sourceCol.options : []).map((opt: any) => ({
+            ...opt,
+            id: uuidv4()
+        }));
+
+        const sourceIndex = board.columns.findIndex(c => c.id === columnId);
+        const newOrder = sourceCol.order + 0.5; // Temporary order, will normalize later or simple insert
+
+        const newCol = {
+            ...sourceCol,
+            id: newColId,
+            title: `Copy of ${sourceCol.title}`,
+            options: newOptions,
+            order: newOrder
+        };
+
+        const newColumns = [...board.columns];
+        newColumns.splice(sourceIndex + 1, 0, newCol);
+
+        // Re-index orders
+        newColumns.forEach((c, idx) => c.order = idx);
+
+        set(state => ({
+            boards: state.boards.map(b => b.id === activeBoardId ? { ...b, columns: newColumns } : b)
+        }));
+
+        await supabase.from('columns').insert({
+            id: newColId,
+            board_id: activeBoardId,
+            title: newCol.title,
+            type: newCol.type,
+            order: sourceIndex + 1, // We should probably re-save all orders if we want to be safe, but insertion is okay for now
+            width: newCol.width,
+            options: newOptions
+        });
+
+        // We technically should update all subsequent column orders in DB to be safe, 
+        // but for now let's just insert. If drag-drop relies on strict integer orders, we might need a reorder RPC.
+        // Let's call reorder RPC to be safe.
+        const columnIds = newColumns.map(c => c.id);
+        await supabase.rpc('reorder_columns', {
+            _board_id: activeBoardId,
+            _column_ids: columnIds
+        });
+
+        get().logActivity('column_created', 'board', activeBoardId, {
+            board_id: activeBoardId,
+            column_title: newCol.title,
+            column_type: newCol.type
+        });
+    },
 
     setColumnAggregation: (columnId, type) => {
         const { activeBoardId } = get();

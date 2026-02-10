@@ -99,7 +99,7 @@
 }
 
 .sidebar-item-input {
-    background-color: white;
+    background-color: hsl(var(--color-bg-surface));
     color: hsl(var(--color-text-primary));
     border: 1px solid hsl(var(--color-brand-primary));
     border-radius: 2px;

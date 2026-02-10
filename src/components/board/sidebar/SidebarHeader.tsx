@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutGrid, Plus, Search, Users } from 'lucide-react';
+import { LayoutGrid, Plus, Search, Users, Upload } from 'lucide-react';
 import { useBoardStore } from '../../../store/useBoardStore';
 import { useUserStore } from '../../../store/useUserStore';
 
@@ -60,7 +60,7 @@ export const SidebarHeader = ({ activeTab, setActiveTab, searchQuery, setSearchQ
                 }}>
                     <LayoutGrid size={20} strokeWidth={2.5} />
                 </div>
-                <span style={{ fontSize: '22px', fontWeight: 700, color: '#323338', letterSpacing: '-0.5px' }}>Workera</span>
+                <span style={{ fontSize: '22px', fontWeight: 700, color: 'hsl(var(--color-text-primary))', letterSpacing: '-0.5px' }}>Workera</span>
             </div>
 
             {/* Admin Link (Only for System Admins) */}
@@ -106,7 +106,7 @@ export const SidebarHeader = ({ activeTab, setActiveTab, searchQuery, setSearchQ
                         padding: '8px 12px',
                         border: 'none',
                         background: 'none',
-                        color: activeTab === 'my-workspaces' ? '#0073ea' : '#676879',
+                        color: activeTab === 'my-workspaces' ? 'hsl(var(--color-brand-primary))' : 'hsl(var(--color-text-secondary))',
                         fontSize: '13px',
                         fontWeight: activeTab === 'my-workspaces' ? 600 : 400,
                         cursor: 'pointer',
@@ -122,7 +122,7 @@ export const SidebarHeader = ({ activeTab, setActiveTab, searchQuery, setSearchQ
                         padding: '8px 12px',
                         border: 'none',
                         background: 'none',
-                        color: activeTab === 'shared' ? '#0073ea' : '#676879',
+                        color: activeTab === 'shared' ? 'hsl(var(--color-brand-primary))' : 'hsl(var(--color-text-secondary))',
                         fontSize: '13px',
                         fontWeight: activeTab === 'shared' ? 600 : 400,
                         cursor: 'pointer',
@@ -150,11 +150,11 @@ export const SidebarHeader = ({ activeTab, setActiveTab, searchQuery, setSearchQ
                             width: '100%',
                             padding: '8px 8px 8px 30px',
                             borderRadius: '6px',
-                            border: '1px solid #e6e9ef',
-                            backgroundColor: '#f5f6f8',
+                            border: '1px solid hsl(var(--color-border))',
+                            backgroundColor: 'hsl(var(--color-bg-surface))',
                             fontSize: '13px',
                             outline: 'none',
-                            color: '#323338'
+                            color: 'hsl(var(--color-text-primary))'
                         }}
                     />
                 </div>
@@ -172,18 +172,22 @@ export const SidebarHeader = ({ activeTab, setActiveTab, searchQuery, setSearchQ
                         padding: '8px 12px',
                         border: 'none',
                         background: 'none',
-                        color: '#676879',
+                        color: 'hsl(var(--color-text-secondary))',
                         fontSize: '13.5px',
                         cursor: 'pointer',
                         borderRadius: '6px',
                         transition: 'background-color 0.2s'
                     }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f5f6f8'}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'}
                     onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                     <Plus size={16} />
                     <span>Add New Workspace</span>
                 </button>
+
+                <div style={{ position: 'relative' }}>
+                    {/* Import Board Removed for Normal Users per Request */}
+                </div>
             </div>
 
 
@@ -197,7 +201,7 @@ export const SidebarHeader = ({ activeTab, setActiveTab, searchQuery, setSearchQ
                     zIndex: 2000
                 }} onClick={() => setIsCreatingWorkspace(false)}>
                     <div style={{
-                        backgroundColor: 'white',
+                        backgroundColor: 'hsl(var(--color-bg-surface))',
                         padding: '24px',
                         borderRadius: '8px',
                         width: '320px',
@@ -216,7 +220,9 @@ export const SidebarHeader = ({ activeTab, setActiveTab, searchQuery, setSearchQ
                                     padding: '8px',
                                     marginBottom: '16px',
                                     borderRadius: '4px',
-                                    border: '1px solid #ccc'
+                                    border: '1px solid hsl(var(--color-border))',
+                                    backgroundColor: 'hsl(var(--color-bg-canvas))',
+                                    color: 'hsl(var(--color-text-primary))'
                                 }}
                             />
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>

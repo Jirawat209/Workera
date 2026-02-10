@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
     Bold, Italic, Underline, Strikethrough,
     List, ListOrdered, Link,
-    Minus
+    Minus, Palette
 } from 'lucide-react';
 import { useBoardStore } from '../../store/useBoardStore';
 
@@ -10,6 +10,18 @@ interface RichTextEditorProps {
     value: string; // HTML string
     onChange: (html: string) => void;
 }
+
+const TEXT_COLORS = [
+    { label: 'Black', value: '#000000' },
+    { label: 'Gray', value: '#666666' },
+    { label: 'Red', value: '#e11d48' },
+    { label: 'Orange', value: '#f59e0b' },
+    { label: 'Yellow', value: '#eab308' },
+    { label: 'Green', value: '#10b981' },
+    { label: 'Blue', value: '#0073ea' }, // Brand
+    { label: 'Purple', value: '#8b5cf6' },
+    { label: 'Pink', value: '#ec4899' },
+];
 
 export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
     const editorRef = useRef<HTMLDivElement>(null);
@@ -25,6 +37,9 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
     const [isLinkUIOpen, setIsLinkUIOpen] = useState(false);
     const [linkData, setLinkData] = useState({ text: '', url: '' });
     const [savedSelection, setSavedSelection] = useState<Range | null>(null);
+
+    // Color State
+    const [isColorUIOpen, setIsColorUIOpen] = useState(false);
 
     // Helper to get display name (prefer email username)
     const getDisplayName = (member: any) => {
@@ -45,13 +60,6 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
     useEffect(() => {
         if (mentionQuery !== null) {
             console.log('[RichTextEditor] Mention Active:', mentionQuery);
-            console.log('[RichTextEditor] All Members:', activeBoardMembers.map(m => ({
-                user_id: m.user_id,
-                display: getDisplayName(m),
-                email: m.profiles?.email,
-                full_name: m.profiles?.full_name
-            })));
-            console.log('[RichTextEditor] Filtered:', filteredMembers.map(m => getDisplayName(m)));
         }
     }, [mentionQuery, activeBoardMembers, filteredMembers.length]);
 
@@ -59,8 +67,8 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 
     // Sync external value to editor ONLY if different and not focused
     useEffect(() => {
-        // Skip sync if Link UI is open
-        if (isLinkUIOpen) return;
+        // Skip sync if UI is open
+        if (isLinkUIOpen || isColorUIOpen) return;
 
         // Skip sync if we just performed an internal update (to avoid race with stale props)
         if (isInternalUpdate.current) {
@@ -75,7 +83,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         if (editorRef.current && !value && !isFocused) {
             editorRef.current.innerHTML = '';
         }
-    }, [value, isFocused, isLinkUIOpen]);
+    }, [value, isFocused, isLinkUIOpen, isColorUIOpen]);
 
     const exec = (command: string, value: string | undefined = undefined) => {
         document.execCommand(command, false, value);
@@ -85,20 +93,6 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 
     const handleChange = () => {
         if (editorRef.current) {
-            // Mark as internal update so useEffect doesn't revert it immediately
-            // But wait... usually handleChange is called AFTER DOM change.
-            // The issue is when we execute a command that changes DOM, then close UI (triggering effect),
-            // then parent updates prop later.
-            // Actually, for insertLink:
-            // 1. exec writes DOM.
-            // 2. call handleChange -> calls onChange(newHTML).
-            // 3. Parent schedules update.
-            // 4. closeLinkUI -> triggers effect [value=old].
-            // We want to block that specific effect run.
-
-            // For standard typing (onInput), isFocused is true, so effect is skipped anyway.
-            // The problem is insertLink closes UI and might not be "focused" in React state yet.
-
             onChange(editorRef.current.innerHTML);
             checkMention();
         }
@@ -116,8 +110,6 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         const lastAt = text.lastIndexOf('@', cursorOffset - 1);
 
         if (lastAt !== -1) {
-            // Check if there are spaces between @ and cursor (allow spaces in names, but maybe limit to a reasonable amount to avoid false positives on "email @ domain")
-            // For simplicity: text between @ and cursor
             const query = text.substring(lastAt + 1, cursorOffset);
 
             // Simple validation: Ensure @ is preceded by space or is start of line
@@ -129,7 +121,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                 // Get coordinates
                 const rect = range.getBoundingClientRect();
                 setMentionPosition({
-                    top: rect.bottom, // Relative to viewport, we might need adjustments if parent is scrolled
+                    top: rect.bottom, // Relative to viewport
                     left: rect.left
                 });
                 return;
@@ -148,10 +140,6 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         const node = range.startContainer;
         const text = node.textContent || '';
         const cursorOffset = range.startOffset;
-
-        // We need to find the @ relative to the SAVED range
-        // Since we cloned the range when the cursor was AT the end of the query,
-        // range.startOffset should be the end of "@query"
 
         const lastAt = text.lastIndexOf('@', cursorOffset - 1);
 
@@ -256,11 +244,35 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         editorRef.current?.focus();
     };
 
+    // --- Color Handlers ---
+    const openColorUI = () => {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            setSavedSelection(selection.getRangeAt(0).cloneRange());
+        }
+        setIsColorUIOpen(true);
+    };
+
+    const applyColor = (color: string) => {
+        const selection = window.getSelection();
+        if (savedSelection && selection) {
+            selection.removeAllRanges();
+            selection.addRange(savedSelection);
+        }
+        exec('foreColor', color);
+        setIsColorUIOpen(false);
+        setSavedSelection(null);
+    };
+
+
     const tools = [
         { id: 'bold', icon: Bold, label: 'Bold', action: () => exec('bold') },
         { id: 'italic', icon: Italic, label: 'Italic', action: () => exec('italic') },
         { id: 'underline', icon: Underline, label: 'Underline', action: () => exec('underline') },
         { id: 'strike', icon: Strikethrough, label: 'Strikethrough', action: () => exec('strikeThrough') },
+        {
+            id: 'color', icon: Palette, label: 'Text Color', action: () => openColorUI()
+        },
         { type: 'separator' },
         { id: 'ul', icon: List, label: 'Bullet List', action: () => exec('insertUnorderedList') },
         { id: 'ol', icon: ListOrdered, label: 'Ordered List', action: () => exec('insertOrderedList') },
@@ -278,7 +290,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
             border: '1px solid hsl(var(--color-border))',
             borderRadius: '8px',
             overflow: 'visible', // Changed to visible for popup
-            backgroundColor: 'white',
+            backgroundColor: 'hsl(var(--color-bg-surface))', // Dark mode fix
             boxShadow: isFocused ? '0 0 0 2px hsl(var(--color-brand-light))' : 'none',
             transition: 'box-shadow 0.2s',
             position: 'relative'
@@ -290,8 +302,10 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                 gap: '4px',
                 padding: '8px 12px',
                 borderBottom: '1px solid hsl(var(--color-border))',
-                backgroundColor: '#f9f9f9',
-                flexWrap: 'wrap'
+                backgroundColor: 'hsl(var(--color-bg-subtle))', // Dark mode fix
+                flexWrap: 'wrap',
+                borderTopLeftRadius: '8px',
+                borderTopRightRadius: '8px'
             }}>
                 {tools.map((tool, index) => {
                     if (tool.type === 'separator') {
@@ -307,30 +321,92 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 
                     const Icon = tool.icon as any;
                     return (
-                        <button
-                            key={tool.id}
-                            onClick={(e) => {
-                                e.preventDefault(); // Prevent losing focus
-                                tool.action?.();
-                            }}
-                            title={tool.label}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: '28px',
-                                height: '28px',
-                                border: 'none',
-                                background: 'transparent',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                color: 'hsl(var(--color-text-secondary))',
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                            <Icon size={16} strokeWidth={2.5} />
-                        </button>
+                        <div key={tool.id} style={{ position: 'relative' }}>
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault(); // Prevent losing focus
+                                    tool.action?.();
+                                }}
+                                title={tool.label}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '28px',
+                                    height: '28px',
+                                    border: 'none',
+                                    background: tool.id === 'color' && isColorUIOpen ? 'rgba(0,0,0,0.1)' : 'transparent',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    color: 'hsl(var(--color-text-secondary))',
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'} // Dark mode fix
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = tool.id === 'color' && isColorUIOpen ? 'rgba(0,0,0,0.1)' : 'transparent'}
+                            >
+                                <Icon size={16} strokeWidth={2.5} />
+                            </button>
+
+                            {/* Color Picker Popover */}
+                            {tool.id === 'color' && isColorUIOpen && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    marginTop: '8px',
+                                    backgroundColor: 'hsl(var(--color-bg-surface))', // Dark mode fix
+                                    border: '1px solid hsl(var(--color-border))',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                    zIndex: 10001,
+                                    padding: '8px',
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(3, 1fr)',
+                                    gap: '4px',
+                                    width: '120px'
+                                }}>
+                                    {TEXT_COLORS.map(color => (
+                                        <button
+                                            key={color.value}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                applyColor(color.value);
+                                            }}
+                                            title={color.label}
+                                            style={{
+                                                width: '32px',
+                                                height: '32px',
+                                                borderRadius: '4px',
+                                                backgroundColor: color.value,
+                                                border: '1px solid rgba(0,0,0,0.1)',
+                                                cursor: 'pointer',
+                                                padding: 0
+                                            }}
+                                        />
+                                    ))}
+                                    {/* Reset Color */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            applyColor('inherit');
+                                        }}
+                                        title="Reset Color"
+                                        style={{
+                                            gridColumn: '1 / -1',
+                                            marginTop: '4px',
+                                            padding: '4px',
+                                            fontSize: '11px',
+                                            background: 'none',
+                                            border: '1px solid hsl(var(--color-border))', // Dark mode fix
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            color: 'hsl(var(--color-text-primary))' // Dark mode fix
+                                        }}
+                                    >
+                                        Auto
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     );
                 })}
             </div>
@@ -345,6 +421,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                     if (e.key === 'Escape') {
                         setMentionQuery(null);
                         closeLinkUI();
+                        setIsColorUIOpen(false);
                     }
                 }}
                 onFocus={() => setIsFocused(true)}
@@ -358,7 +435,8 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                     padding: '16px',
                     fontSize: '14px',
                     outline: 'none',
-                    lineHeight: '1.5'
+                    lineHeight: '1.5',
+                    color: 'hsl(var(--color-text-primary))' // Dark mode fix
                 }}
                 className="rich-text-content"
             />
@@ -370,7 +448,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                         position: 'fixed', // Use fixed to handle viewport relative from getBoundingClientRect
                         top: mentionPosition?.top,
                         left: mentionPosition?.left,
-                        backgroundColor: 'white',
+                        backgroundColor: 'hsl(var(--color-bg-surface))', // Dark mode fix
                         border: '1px solid hsl(var(--color-border))',
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -390,11 +468,11 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                                     alignItems: 'center',
 
                                     gap: '8px',
-                                    borderBottom: i < filteredMembers.length - 1 ? '1px solid #f0f0f0' : 'none',
-                                    backgroundColor: 'white' // default
+                                    borderBottom: i < filteredMembers.length - 1 ? '1px solid hsl(var(--color-border))' : 'none', // Dark mode fix
+                                    backgroundColor: 'hsl(var(--color-bg-surface))' // default
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f7fa'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'} // Dark mode fix
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-surface))'}
                             >
                                 <div style={{
                                     width: '24px', height: '24px', borderRadius: '50%',
@@ -409,10 +487,10 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                                     )}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontSize: '13px', color: '#333', fontWeight: 500 }}>
+                                    <span style={{ fontSize: '13px', color: 'hsl(var(--color-text-primary))', fontWeight: 500 }}>
                                         {getDisplayName(member)}
                                     </span>
-                                    <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                                    <span style={{ fontSize: '11px', color: 'hsl(var(--color-text-secondary))' }}>
                                         {member.profiles?.email || ''}
                                         {member.role === 'owner' && <span style={{ marginLeft: '4px', color: '#f59e0b', fontWeight: 'bold' }}>(Owner)</span>}
                                         {member.role === 'workspace_owner' && <span style={{ marginLeft: '4px', color: '#854d0e', fontWeight: 'bold', fontSize: '10px' }}>(Workspace Owner)</span>}
@@ -442,7 +520,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                         top: '40px', // Below toolbar
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        backgroundColor: 'white',
+                        backgroundColor: 'hsl(var(--color-bg-surface))', // Dark mode fix
                         border: '1px solid hsl(var(--color-border))',
                         borderRadius: '8px',
                         boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
@@ -453,13 +531,13 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                         flexDirection: 'column',
                         gap: '12px'
                     }}>
-                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#323338', display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: 'hsl(var(--color-text-primary))', display: 'flex', justifyContent: 'space-between' }}>
                             <span>Add Link</span>
-                            <button onClick={closeLinkUI} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#999' }}>✕</button>
+                            <button onClick={closeLinkUI} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'hsl(var(--color-text-secondary))' }}>✕</button>
                         </div>
 
                         <div>
-                            <label style={{ fontSize: '12px', color: '#676879', fontWeight: 500, marginBottom: '4px', display: 'block' }}>Text to display</label>
+                            <label style={{ fontSize: '12px', color: 'hsl(var(--color-text-secondary))', fontWeight: 500, marginBottom: '4px', display: 'block' }}>Text to display</label>
                             <input
                                 type="text"
                                 value={linkData.text}
@@ -469,17 +547,18 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                                     width: '100%',
                                     padding: '8px 12px',
                                     borderRadius: '4px',
-                                    border: '1px solid #c3c6d4',
+                                    border: '1px solid hsl(var(--color-border))',
+                                    backgroundColor: 'hsl(var(--color-bg-canvas))', // Dark mode fix
                                     fontSize: '14px',
                                     outline: 'none',
-                                    color: '#333'
+                                    color: 'hsl(var(--color-text-primary))'
                                 }}
                                 autoFocus
                             />
                         </div>
 
                         <div>
-                            <label style={{ fontSize: '12px', color: '#676879', fontWeight: 500, marginBottom: '4px', display: 'block' }}>Link address</label>
+                            <label style={{ fontSize: '12px', color: 'hsl(var(--color-text-secondary))', fontWeight: 500, marginBottom: '4px', display: 'block' }}>Link address</label>
                             <input
                                 type="text"
                                 value={linkData.url}
@@ -489,10 +568,11 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                                     width: '100%',
                                     padding: '8px 12px',
                                     borderRadius: '4px',
-                                    border: '1px solid #c3c6d4',
+                                    border: '1px solid hsl(var(--color-border))',
+                                    backgroundColor: 'hsl(var(--color-bg-canvas))', // Dark mode fix
                                     fontSize: '14px',
                                     outline: 'none',
-                                    color: '#333'
+                                    color: 'hsl(var(--color-text-primary))'
                                 }}
                                 onKeyDown={(e) => e.key === 'Enter' && insertLink()}
                             />
@@ -504,9 +584,9 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                                 style={{
                                     padding: '6px 12px',
                                     borderRadius: '4px',
-                                    border: '1px solid #e1e3ea',
-                                    background: 'white',
-                                    color: '#323338',
+                                    border: '1px solid hsl(var(--color-border))',
+                                    background: 'transparent',
+                                    color: 'hsl(var(--color-text-primary))',
                                     fontSize: '13px',
                                     fontWeight: 500,
                                     cursor: 'pointer'
@@ -520,7 +600,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
                                     padding: '6px 16px',
                                     borderRadius: '4px',
                                     border: 'none',
-                                    backgroundColor: '#0073ea',
+                                    backgroundColor: 'hsl(var(--color-brand-primary))',
                                     color: 'white',
                                     fontSize: '13px',
                                     fontWeight: 500,

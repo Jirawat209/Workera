@@ -1,3 +1,4 @@
+import { BatchActionsBar } from '../components/table/BatchActionsBar';
 import { BoardHeader } from '../components/board/BoardHeader';
 import { Table } from '../components/table/Table';
 import { useBoardStore } from '../store/useBoardStore';
@@ -14,6 +15,7 @@ export const BoardPage = () => {
             <div style={{ flex: 1, overflow: 'hidden', padding: '0', display: 'flex', flexDirection: 'column' }}>
                 <Table boardId={activeBoardId} />
             </div>
+            <BatchActionsBar />
         </>
     );
 };

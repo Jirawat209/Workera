@@ -4,7 +4,7 @@ import { useBoardStore } from '../store/useBoardStore';
 import { supabase } from '../lib/supabase';
 import {
     LayoutDashboard, Users, Settings,
-    ShieldCheck, Activity, ArrowLeft, Building2, Trello
+    ShieldCheck, Activity, ArrowLeft, Building2, Trello, Download, Upload
 } from 'lucide-react';
 import { UserTable } from '../components/admin/UserTable';
 import { WorkspaceTable } from '../components/admin/WorkspaceTable';
@@ -181,6 +181,63 @@ export const AdminPage = () => {
                 {activeTab === 'boards' && (
                     <div style={{ height: '600px' }}>
                         <BoardTable />
+                    </div>
+                )}
+                {activeTab === 'settings' && (
+                    <div style={{ maxWidth: '800px' }}>
+                        <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Settings size={20} />
+                                System Backup & Restore
+                            </h2>
+                            <p style={{ color: '#64748b', marginBottom: '24px', fontSize: '14px' }}>
+                                Manage full system backups. Regular backups are recommended before major updates.
+                            </p>
+
+                            <div style={{ display: 'flex', gap: '16px' }}>
+                                <button
+                                    onClick={() => {
+                                        import('../services/backupService').then(({ backupService }) => {
+                                            backupService.exportSystem();
+                                        });
+                                    }}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        padding: '10px 16px',
+                                        backgroundColor: '#f8fafc',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '6px',
+                                        color: '#0f172a',
+                                        fontWeight: 500,
+                                        cursor: 'pointer',
+                                        fontSize: '14px'
+                                    }}
+                                >
+                                    <Download size={16} />
+                                    Export All Data (JSON)
+                                </button>
+
+                                {/* Placeholder for System Import - To be implemented safely */}
+                                <button
+                                    onClick={() => alert('System Restore is not yet fully implemented for safety reasons.')}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        padding: '10px 16px',
+                                        backgroundColor: '#f8fafc',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '6px',
+                                        color: '#94a3b8',
+                                        fontWeight: 500,
+                                        cursor: 'not-allowed',
+                                        fontSize: '14px'
+                                    }}
+                                    title="Coming Soon"
+                                >
+                                    <Upload size={16} />
+                                    Import System Data
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>

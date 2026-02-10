@@ -212,7 +212,7 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
             </div>
 
             {/* Content */}
-            <div style={{ flex: 1, overflow: 'auto', padding: '32px', backgroundColor: '#f5f7fa' }}>
+            <div style={{ flex: 1, overflow: 'auto', padding: '32px', backgroundColor: 'hsl(var(--color-bg-canvas))' }}>
                 {activeTab === 'updates' && (
                     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
                         {/* Input Area (New WYSIWYG) */}
@@ -259,7 +259,7 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                 {activeItem.updates.filter(u => typeof u === 'object' && u?.id).map(update => (
                                     <div key={update.id} style={{
-                                        backgroundColor: 'white',
+                                        backgroundColor: 'hsl(var(--color-bg-surface))',
                                         borderRadius: '8px',
                                         border: '1px solid hsl(var(--color-border))',
                                         padding: '20px',
@@ -313,7 +313,7 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                                                             top: '100%',
                                                             right: 0,
                                                             marginTop: '4px',
-                                                            backgroundColor: 'white',
+                                                            backgroundColor: 'hsl(var(--color-bg-surface))',
                                                             border: '1px solid #fee2e2',
                                                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                                                             borderRadius: '6px',
@@ -361,7 +361,8 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                                         </div>
                                         {/* Render HTML Content */}
                                         <div
-                                            className="prose prose-sm max-w-none text-gray-800"
+                                            className="prose prose-sm max-w-none"
+                                            style={{ color: 'hsl(var(--color-text-primary))' }}
                                             dangerouslySetInnerHTML={{ __html: update.content }}
                                         />
                                     </div>
@@ -378,7 +379,7 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
 
                             {/* Inline Add File Form */}
                             <div style={{
-                                backgroundColor: 'white',
+                                backgroundColor: 'hsl(var(--color-bg-surface))',
                                 padding: '20px',
                                 borderRadius: '8px',
                                 border: '1px solid #e1e4e8',
@@ -400,9 +401,11 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                                                     width: '100%',
                                                     padding: '8px 12px',
                                                     borderRadius: '4px',
-                                                    border: fileError ? '1px solid #e11d48' : '1px solid #d0d4e4',
+                                                    border: fileError ? '1px solid #e11d48' : '1px solid hsl(var(--color-border))',
                                                     fontSize: '14px',
-                                                    outline: 'none'
+                                                    outline: 'none',
+                                                    backgroundColor: 'hsl(var(--color-bg-canvas))',
+                                                    color: 'hsl(var(--color-text-primary))'
                                                 }}
                                             />
                                             {fileError && <div style={{ color: '#e11d48', fontSize: '12px', marginTop: '4px' }}>{fileError}</div>}
@@ -417,9 +420,11 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                                                     width: '100%',
                                                     padding: '8px 12px',
                                                     borderRadius: '4px',
-                                                    border: '1px solid #d0d4e4',
+                                                    border: '1px solid hsl(var(--color-border))',
                                                     fontSize: '14px',
-                                                    outline: 'none'
+                                                    outline: 'none',
+                                                    backgroundColor: 'hsl(var(--color-bg-canvas))',
+                                                    color: 'hsl(var(--color-text-primary))'
                                                 }}
                                             />
                                         </div>
@@ -461,9 +466,9 @@ export const TaskDetail = ({ itemId, onClose }: { itemId: string; onClose: () =>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
                                 {activeItem.files.map((file) => (
                                     <div key={file.id} style={{
-                                        backgroundColor: 'white',
+                                        backgroundColor: 'hsl(var(--color-bg-surface))',
                                         borderRadius: '8px',
-                                        border: '1px solid #e1e4e8',
+                                        border: '1px solid hsl(var(--color-border))',
                                         padding: '16px',
                                         display: 'flex',
                                         flexDirection: 'column',

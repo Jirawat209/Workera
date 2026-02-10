@@ -43,14 +43,15 @@ export const AddColumnMenu = ({ onSelect, onClose, position }: AddColumnMenuProp
                 top: position.bottom + 8,
                 left: Math.min(Math.max(20, position.left - 150), window.innerWidth - 340), // 320px width + 20px padding
                 width: '320px',
-                backgroundColor: 'white',
+                backgroundColor: 'hsl(var(--color-bg-surface))',
                 borderRadius: '8px',
                 boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
                 zIndex: 9999,
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
-                border: '1px solid hsl(var(--color-border))'
+                border: '1px solid hsl(var(--color-border))',
+                color: 'hsl(var(--color-text-primary))'
             }}
         >
             <div style={{ padding: '12px 16px', borderBottom: '1px solid hsl(var(--color-border))' }}>
@@ -63,14 +64,16 @@ export const AddColumnMenu = ({ onSelect, onClose, position }: AddColumnMenuProp
                         borderRadius: '4px',
                         border: '1px solid hsl(var(--color-border))',
                         outline: 'none',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        backgroundColor: 'hsl(var(--color-bg-subtle))',
+                        color: 'hsl(var(--color-text-primary))'
                     }}
                     autoFocus
                 />
             </div>
 
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ fontSize: '13px', color: '#676879', fontWeight: 500 }}>Essentials</div>
+                <div style={{ fontSize: '13px', color: 'hsl(var(--color-text-secondary))', fontWeight: 500 }}>Essentials</div>
 
                 <div style={{
                     display: 'grid',
@@ -90,12 +93,7 @@ export const AddColumnMenu = ({ onSelect, onClose, position }: AddColumnMenuProp
                                 borderRadius: '4px',
                                 transition: 'background 0.1s'
                             }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#f5f6f8';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
+                            className="hover-bg"
                         >
                             <div style={{
                                 width: '24px',
@@ -109,10 +107,13 @@ export const AddColumnMenu = ({ onSelect, onClose, position }: AddColumnMenuProp
                             }}>
                                 <item.icon size={14} />
                             </div>
-                            <span style={{ fontSize: '14px', color: '#323338' }}>{item.label}</span>
+                            <span style={{ fontSize: '14px', color: 'hsl(var(--color-text-primary))' }}>{item.label}</span>
                         </div>
                     ))}
                 </div>
+                <style>{`
+                    .hover-bg:hover { background-color: hsl(var(--color-bg-surface-hover)) !important; }
+                `}</style>
             </div>
         </div>,
         document.body

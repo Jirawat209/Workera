@@ -92,23 +92,24 @@ export const TimelinePicker = ({ dateRange, onSelect, onClose, position }: Timel
                 position: 'fixed',
                 top: style.top,
                 left: style.left,
-                backgroundColor: 'white',
+                backgroundColor: 'hsl(var(--color-bg-surface))',
                 borderRadius: '8px',
                 boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
-                border: '1px solid #e6e9ef',
+                border: '1px solid hsl(var(--color-border))',
                 zIndex: 9999,
                 width: '320px',
                 padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
-                fontFamily: 'Inter, sans-serif'
+                fontFamily: 'Inter, sans-serif',
+                color: 'hsl(var(--color-text-primary))'
             }}
             onClick={(e) => e.stopPropagation()}
         >
             {/* Manual Date Inputs */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                 <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '11px', color: '#676879', fontWeight: 500, display: 'block', marginBottom: '4px' }}>From</label>
+                    <label style={{ fontSize: '11px', color: 'hsl(var(--color-text-secondary))', fontWeight: 500, display: 'block', marginBottom: '4px' }}>From</label>
                     <input
                         type="date"
                         value={selectedRange?.from ? format(selectedRange.from, 'yyyy-MM-dd') : ''}
@@ -136,7 +137,7 @@ export const TimelinePicker = ({ dateRange, onSelect, onClose, position }: Timel
                     />
                 </div>
                 <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '11px', color: '#676879', fontWeight: 500, display: 'block', marginBottom: '4px' }}>To</label>
+                    <label style={{ fontSize: '11px', color: 'hsl(var(--color-text-secondary))', fontWeight: 500, display: 'block', marginBottom: '4px' }}>To</label>
                     <input
                         type="date"
                         min={selectedRange?.from ? format(selectedRange.from, 'yyyy-MM-dd') : undefined}
@@ -167,27 +168,27 @@ export const TimelinePicker = ({ dateRange, onSelect, onClose, position }: Timel
 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <button onClick={handlePrevMonth} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', color: '#676879' }} className="hover-bg"><ChevronLeft size={20} /></button>
+                <button onClick={handlePrevMonth} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', color: 'hsl(var(--color-text-secondary))' }} className="hover-bg"><ChevronLeft size={20} /></button>
                 <div style={{ display: 'flex', gap: '4px' }}>
-                    <button onClick={() => setView('months')} style={{ background: 'transparent', border: 'none', fontWeight: 600, cursor: 'pointer', color: '#323338' }}>{format(month, 'MMMM')}</button>
-                    <button onClick={() => setView('years')} style={{ background: 'transparent', border: 'none', fontWeight: 600, cursor: 'pointer', color: '#323338' }}>{format(month, 'yyyy')}</button>
+                    <button onClick={() => setView('months')} style={{ background: 'transparent', border: 'none', fontWeight: 600, cursor: 'pointer', color: 'hsl(var(--color-text-primary))' }}>{format(month, 'MMMM')}</button>
+                    <button onClick={() => setView('years')} style={{ background: 'transparent', border: 'none', fontWeight: 600, cursor: 'pointer', color: 'hsl(var(--color-text-primary))' }}>{format(month, 'yyyy')}</button>
                 </div>
-                <button onClick={handleNextMonth} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', color: '#676879' }} className="hover-bg"><ChevronRight size={20} /></button>
+                <button onClick={handleNextMonth} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', color: 'hsl(var(--color-text-secondary))' }} className="hover-bg"><ChevronRight size={20} /></button>
             </div>
 
             <style>{`
-                .hover-bg:hover { background-color: #f5f6f8 !important; }
+                .hover-bg:hover { background-color: hsl(var(--color-bg-surface-hover)) !important; }
                 .rdp-nav { display: none; }
                 .rdp-caption { display: none; } 
                 .rdp-day_selected:not([disabled]) { 
-                    background-color: #ff158a !important; 
+                    background-color: hsl(var(--color-brand-primary)) !important; 
                     color: white;
                 }
                 .rdp-day_range_middle {
-                    background-color: #ff158a20 !important;
-                    color: #ff158a !important;
+                    background-color: hsl(var(--color-brand-light)) !important;
+                    color: hsl(var(--color-brand-primary)) !important;
                 }
-                .rdp-day:hover:not(.rdp-day_selected) { background-color: #f5f6f8; }
+                .rdp-day:hover:not(.rdp-day_selected) { background-color: hsl(var(--color-bg-surface-hover)); }
                 .rdp { margin: 0; --rdp-cell-size: 36px; } 
             `}</style>
 
@@ -216,8 +217,8 @@ export const TimelinePicker = ({ dateRange, onSelect, onClose, position }: Timel
                                 padding: '8px 4px',
                                 border: 'none',
                                 borderRadius: '4px',
-                                backgroundColor: month.getFullYear() === year ? '#0073ea' : 'transparent',
-                                color: month.getFullYear() === year ? 'white' : '#323338',
+                                backgroundColor: month.getFullYear() === year ? 'hsl(var(--color-brand-primary))' : 'transparent',
+                                color: month.getFullYear() === year ? 'white' : 'hsl(var(--color-text-primary))',
                                 cursor: 'pointer',
                                 fontSize: '14px',
                                 fontWeight: month.getFullYear() === year ? 600 : 400
@@ -244,8 +245,8 @@ export const TimelinePicker = ({ dateRange, onSelect, onClose, position }: Timel
                                 padding: '12px 8px',
                                 border: 'none',
                                 borderRadius: '6px',
-                                backgroundColor: month.getMonth() === index ? '#0073ea' : 'transparent',
-                                color: month.getMonth() === index ? 'white' : '#323338',
+                                backgroundColor: month.getMonth() === index ? 'hsl(var(--color-brand-primary))' : 'transparent',
+                                color: month.getMonth() === index ? 'white' : 'hsl(var(--color-text-primary))',
                                 cursor: 'pointer',
                                 fontSize: '14px',
                                 fontWeight: month.getMonth() === index ? 600 : 400,

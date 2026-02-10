@@ -91,7 +91,7 @@ export const Row = React.memo(({
                 position: 'sticky',
                 left: 0,
                 zIndex: 5,
-                backgroundColor: isSelected ? 'hsl(var(--color-brand-primary-subtle))' : (item.isHidden ? 'hsl(var(--color-bg-subtle))' : '#fff'),
+                backgroundColor: isSelected ? 'hsl(var(--color-brand-primary-subtle))' : (item.isHidden ? 'hsl(var(--color-bg-subtle))' : 'hsl(var(--color-bg-canvas))'),
                 borderRight: '1px solid hsl(var(--color-border))',
                 paddingLeft: groupColor ? '18px' : '8px',
                 display: 'flex',

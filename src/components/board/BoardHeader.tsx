@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Share2, Activity, X, MoreHorizontal, Star, Search, Trash2, Edit2, Plus } from 'lucide-react';
+import { Share2, Activity, X, MoreHorizontal, Star, Search, Trash2, Edit2, Plus, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBoardStore } from '../../store/useBoardStore';
 import { usePermission } from '../../hooks/usePermission';
 import { ActivityLogList } from '../common/ActivityLogList';
 import { ShareBoardModal } from '../workspace/ShareBoardModal';
 import { SidePanel } from '../ui/SidePanel';
+import { ExportBoardModal } from './ExportBoardModal';
 
 interface BoardHeaderProps {
     boardId: string;
@@ -22,6 +23,7 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
     const [showActivityLog, setShowActivityLog] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     // Rename Logic
     const [isEditing, setIsEditing] = useState(false);
@@ -403,6 +405,26 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
                             >
                                 <Trash2 size={14} /> Delete Board
                             </button>
+
+                            <div style={{ height: '1px', background: 'hsl(var(--color-border))', margin: '4px 0' }} />
+
+                            <button
+                                onClick={() => {
+                                    setShowExportModal(true);
+                                    setShowMenu(false);
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    width: '100%', padding: '8px 16px',
+                                    textAlign: 'left', background: 'none', border: 'none',
+                                    fontSize: '14px', color: 'hsl(var(--color-text-secondary))',
+                                    cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                                <Download size={14} /> Export Board to Excel/CSV
+                            </button>
                         </div>
                     )}
                 </div>
@@ -412,6 +434,19 @@ export const BoardHeader = ({ boardId }: BoardHeaderProps) => {
                 <ShareBoardModal
                     boardId={boardId}
                     onClose={() => setShowShareModal(false)}
+                />
+            )}
+
+            {showExportModal && (
+                <ExportBoardModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    defaultFilename={board.title}
+                    onExport={(filename) => {
+                        import('../../services/backupService').then(({ backupService }) => {
+                            backupService.exportBoardToCSV(boardId, filename);
+                        });
+                    }}
                 />
             )}
         </header>

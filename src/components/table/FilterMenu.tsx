@@ -125,21 +125,21 @@ export const FilterMenu = ({
                 position: 'fixed',
                 top: position.top,
                 left: position.left,
-                backgroundColor: 'white',
+                backgroundColor: 'hsl(var(--color-bg-surface))',
                 borderRadius: '8px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                border: '1px solid #e1e4e8',
+                border: '1px solid hsl(var(--color-border))',
                 zIndex: 9999,
                 width: '260px',
                 maxHeight: '400px',
                 display: 'flex',
                 flexDirection: 'column',
-                color: '#323338',
+                color: 'hsl(var(--color-text-primary))',
                 fontSize: '14px',
                 overflow: 'hidden'
             }}
         >
-            <div style={{ padding: '8px 12px', borderBottom: '1px solid #e1e4e8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f5f6f8' }}>
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid hsl(var(--color-border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'hsl(var(--color-bg-subtle))' }}>
                 <span style={{ fontWeight: 500 }}>Filter {title}</span>
                 <button onClick={onClose} className="icon-btn" style={{ padding: 4 }}><X size={14} /></button>
             </div>
@@ -149,11 +149,12 @@ export const FilterMenu = ({
                     display: 'flex',
                     alignItems: 'center',
                     padding: '4px 8px',
-                    background: '#f0f1f3',
+                    background: 'hsl(var(--color-bg-canvas))',
                     borderRadius: '4px',
-                    marginBottom: '8px'
+                    marginBottom: '8px',
+                    border: '1px solid hsl(var(--color-border))'
                 }}>
-                    <Search size={14} style={{ color: '#676879', marginRight: '6px' }} />
+                    <Search size={14} style={{ color: 'hsl(var(--color-text-secondary))', marginRight: '6px' }} />
                     <input
                         type="text"
                         placeholder="Search..."
@@ -164,7 +165,8 @@ export const FilterMenu = ({
                             background: 'transparent',
                             outline: 'none',
                             width: '100%',
-                            fontSize: '13px'
+                            fontSize: '13px',
+                            color: 'hsl(var(--color-text-primary))'
                         }}
                     />
                 </div>
@@ -173,10 +175,8 @@ export const FilterMenu = ({
                     <div
                         onClick={toggleSelectAll}
                         style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer', borderRadius: '4px' }}
-                        className="hover:bg-gray-100"
+                        className="hover-bg"
                     >
-                        {/* Does "Clear Filter" mean Select All? Yes. */}
-                        {/* If checked, it means filter is empty */}
                         <input
                             type="checkbox"
                             checked={!isFiltered}
@@ -193,8 +193,7 @@ export const FilterMenu = ({
                                 key={opt.id}
                                 onClick={() => toggleOption(opt.id)}
                                 style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer', borderRadius: '4px' }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6f8'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                className="hover-bg"
                             >
                                 <input
                                     type="checkbox"
@@ -211,11 +210,14 @@ export const FilterMenu = ({
                     })}
 
                     {filteredOptions.length === 0 && (
-                        <div style={{ padding: '16px', textAlign: 'center', color: '#676879' }}>
+                        <div style={{ padding: '16px', textAlign: 'center', color: 'hsl(var(--color-text-secondary))' }}>
                             No options found
                         </div>
                     )}
                 </div>
+                <style>{`
+                    .hover-bg:hover { background-color: hsl(var(--color-bg-surface-hover)) !important; }
+                `}</style>
             </div>
         </div>,
         document.body

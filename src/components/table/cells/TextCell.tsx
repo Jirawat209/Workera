@@ -134,5 +134,5 @@ const cellStyle: React.CSSProperties = {
     width: '100%', height: '100%', borderRight: '1px solid hsl(var(--color-cell-border))', padding: '0 8px',
     display: 'flex', alignItems: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text'
 };
-const linkStyle: React.CSSProperties = { color: '#0073ea', textDecoration: 'none', cursor: 'pointer' };
+const linkStyle: React.CSSProperties = { color: 'hsl(var(--color-brand-primary))', textDecoration: 'none', cursor: 'pointer' };
 const placeholderStyle: React.CSSProperties = { color: 'hsl(var(--color-text-tertiary))', opacity: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', cursor: 'pointer' };

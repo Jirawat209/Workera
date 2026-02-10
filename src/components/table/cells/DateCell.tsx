@@ -44,7 +44,7 @@ export const DateCell: React.FC<DateCellProps> = ({ item, column }) => {
                 top: rect.bottom + 4,
                 left: rect.left,
                 width: rect.width,
-                bottom: rect.bottom
+                bottom: rect.bottom + 4 // Add small offset
             });
             setIsEditing(true);
         }
@@ -66,7 +66,7 @@ export const DateCell: React.FC<DateCellProps> = ({ item, column }) => {
                     justifyContent: 'center',
                     cursor: 'pointer',
                     color: value ? 'inherit' : 'hsl(var(--color-text-tertiary))',
-                    backgroundColor: isEditing ? '#e5f4ff' : 'transparent'
+                    backgroundColor: isEditing ? 'hsl(var(--color-brand-light))' : 'transparent'
                 }}
             >
                 {value ? (

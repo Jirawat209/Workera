@@ -53,7 +53,7 @@ export const PeopleCell: React.FC<PeopleCellProps> = ({ item, column }) => {
                     gap: '4px',
                     cursor: 'pointer',
                     overflow: 'hidden',
-                    justifyContent: selectedIds.length > 0 ? 'flex-start' : 'center'
+                    justifyContent: 'center'
                 }}
             >
                 {selectedIds.length > 0 ? (

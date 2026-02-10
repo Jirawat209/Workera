@@ -259,7 +259,7 @@ export const Table = ({ boardId }: { boardId: string }) => {
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                            backgroundColor: 'hsl(var(--color-bg-canvas) / 0.8)',
                             backdropFilter: 'blur(2px)',
                             zIndex: 9999,
                             display: 'flex',
@@ -419,7 +419,7 @@ export const Table = ({ boardId }: { boardId: string }) => {
                                                                 display: 'flex',
                                                                 boxShadow: '0 0 0 1px hsl(var(--color-border)), 0 2px 8px rgba(0,0,0,0.1)',
                                                                 borderRadius: '8px',
-                                                                backgroundColor: 'white',
+                                                                backgroundColor: 'hsl(var(--color-bg-surface))',
                                                                 overflow: 'hidden',
                                                                 height: '36px',
                                                                 marginTop: '0px',
@@ -595,7 +595,7 @@ export const Table = ({ boardId }: { boardId: string }) => {
                         {activeItem && (
                             <div style={{
                                 height: '40px',
-                                background: 'white',
+                                background: 'hsl(var(--color-bg-surface))',
                                 border: '1px solid hsl(var(--color-brand-primary))',
                                 borderRadius: '4px',
                                 display: 'flex',

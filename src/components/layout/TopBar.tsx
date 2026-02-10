@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, Bell } from 'lucide-react';
+import { LogOut, Bell, Sun, Moon } from 'lucide-react'; // Added Sun, Moon
 import { motion } from 'framer-motion';
 import { CloudStatus } from './CloudStatus';
 import { useBoardStore } from '../../store/useBoardStore';
+import { useThemeStore } from '../../store/useThemeStore'; // Added Theme Store
 import { NotificationItem } from '../notifications/NotificationItem';
 
 export const TopBar = () => {
@@ -11,6 +12,8 @@ export const TopBar = () => {
     const unreadCount = useBoardStore(state => state.notifications?.filter(n => !n.is_read).length || 0);
     const loadNotifications = useBoardStore(state => state.loadNotifications);
     const navigateTo = useBoardStore(state => state.navigateTo);
+
+    const { theme, toggleTheme } = useThemeStore(); // Theme Hook
 
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
@@ -65,7 +68,7 @@ export const TopBar = () => {
             alignItems: 'center',
             justifyContent: 'flex-end',
             padding: '0 24px',
-            gap: '16px',
+            gap: '12px',
             flexShrink: 0,
             zIndex: 50 // Ensure above table sticky headers if any conflict
         }}>
@@ -73,6 +76,21 @@ export const TopBar = () => {
             <CloudStatus />
 
             <div style={{ width: '1px', height: '20px', backgroundColor: 'hsl(var(--color-border))', margin: '0 8px' }} />
+
+            {/* Theme Toggle Button */}
+            <button
+                onClick={toggleTheme}
+                className="theme-toggle-btn flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-[hsl(var(--color-bg-hover))] focus:outline-none"
+                style={{
+                    backgroundColor: 'transparent',
+                    color: 'hsl(var(--color-text-secondary))',
+                    border: 'none',
+                    cursor: 'pointer'
+                }}
+                title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+            >
+                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            </button>
 
             {/* Notification Bell */}
             <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }} ref={notificationMenuRef}>
@@ -109,35 +127,35 @@ export const TopBar = () => {
                         top: '44px',
                         right: '-80px', // Shift slightly right to align better with edge or center
                         width: '360px',
-                        backgroundColor: 'white',
+                        backgroundColor: 'hsl(var(--color-bg-surface))', // Use surface color
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid hsl(var(--color-border))', // Use border color
                         zIndex: 1000,
                         display: 'flex',
                         flexDirection: 'column',
                         overflow: 'hidden'
                     }}>
-                        <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 600, color: '#111827' }}>Notifications</span>
-                            {unreadCount > 0 && <span style={{ fontSize: '12px', color: '#6b7280' }}>{unreadCount} unread</span>}
+                        <div style={{ padding: '12px 16px', borderBottom: '1px solid hsl(var(--color-border))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, color: 'hsl(var(--color-text-primary))' }}>Notifications</span>
+                            {unreadCount > 0 && <span style={{ fontSize: '12px', color: 'hsl(var(--color-text-secondary))' }}>{unreadCount} unread</span>}
                         </div>
 
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                             {recentNotifications.length > 0 ? (
                                 recentNotifications.map(notification => (
-                                    <div key={notification.id} style={{ borderBottom: '1px solid #f9fafb' }}>
+                                    <div key={notification.id} style={{ borderBottom: '1px solid hsl(var(--color-border))' }}>
                                         <NotificationItem notification={notification} onClose={() => setShowNotifications(false)} />
                                     </div>
                                 ))
                             ) : (
-                                <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
+                                <div style={{ padding: '24px', textAlign: 'center', color: 'hsl(var(--color-text-tertiary))', fontSize: '13px' }}>
                                     No notifications
                                 </div>
                             )}
                         </div>
 
-                        <div style={{ padding: '8px', borderTop: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
+                        <div style={{ padding: '8px', borderTop: '1px solid hsl(var(--color-border))', backgroundColor: 'hsl(var(--color-bg-subtle))' }}>
                             <button
                                 onClick={() => {
                                     setShowNotifications(false);
@@ -148,13 +166,13 @@ export const TopBar = () => {
                                     padding: '8px',
                                     backgroundColor: 'transparent',
                                     border: 'none',
-                                    color: '#2563eb',
+                                    color: 'hsl(var(--color-brand-primary))', // brand color
                                     fontSize: '13px',
                                     fontWeight: 500,
                                     cursor: 'pointer',
                                     borderRadius: '4px'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-hover))'}
                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                             >
                                 See all notifications
@@ -209,7 +227,7 @@ export const TopBar = () => {
                         position: 'absolute',
                         top: '44px',
                         right: 0,
-                        backgroundColor: 'white',
+                        backgroundColor: 'hsl(var(--color-bg-surface))', // surface
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                         minWidth: '240px',
@@ -266,3 +284,4 @@ export const TopBar = () => {
         </div>
     );
 };
+
