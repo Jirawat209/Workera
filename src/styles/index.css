@@ -1,6 +1,21 @@
+@import "tailwindcss";
 @import './variables.css';
 @import './components.css';
 @import './table.css';
+
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
+
+    *,
+    ::before,
+    ::after {
+        border-width: 0;
+        border-style: solid;
+        border-color: hsl(var(--color-border));
+    }
+}
+
 
 *,
 *::before,
@@ -17,7 +32,6 @@ body {
     font-size: var(--font-size-md);
     -webkit-font-smoothing: antialiased;
     accent-color: hsl(var(--color-brand-primary));
-    line-height: 1.5;
     line-height: 1.5;
     color-scheme: light;
 }

@@ -79,6 +79,7 @@ export interface Workspace {
     title: string;
     order: number;
     owner_id: string;
+    ownerName?: string; // Transient property for UI
 }
 
 
@@ -99,6 +100,7 @@ export interface Board {
     // View State (Transient or Persistent)
     sort?: SortState | null;
     filters?: FilterState[]; // Support multiple column filters
+    lastViewedAt?: string; // Captured from board_members
 }
 
 export type NotificationType = 'workspace_invite' | 'board_invite' | 'assignment' | 'mention';
@@ -120,7 +122,7 @@ export interface Notification {
     message: string | null;
     data: NotificationData;
     is_read: boolean;
-    status?: NotificationStatus;
+    status?: NotificationStatus; // Optional, often stored in data
     created_at: string;
     actor_id?: string;
     user_id: string;

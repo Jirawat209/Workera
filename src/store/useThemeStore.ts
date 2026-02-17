@@ -17,10 +17,20 @@ export const useThemeStore = create<ThemeState>()(
                 const newTheme = state.theme === 'light' ? 'dark' : 'light';
                 // Side effect to update DOM
                 document.documentElement.setAttribute('data-theme', newTheme);
+                if (newTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
                 return { theme: newTheme };
             }),
             setTheme: (theme) => {
                 document.documentElement.setAttribute('data-theme', theme);
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
                 set({ theme });
             },
         }),
@@ -29,6 +39,11 @@ export const useThemeStore = create<ThemeState>()(
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     document.documentElement.setAttribute('data-theme', state.theme);
+                    if (state.theme === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
                 }
             }
         }

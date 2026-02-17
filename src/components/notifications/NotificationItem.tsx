@@ -95,21 +95,23 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                     {getIcon()}
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <p style={{
-                            fontSize: '14px', color: '#111827', paddingRight: '24px', margin: 0,
-                            fontWeight: !notification.is_read ? 600 : 400
-                        }}>
-                            {notification.title || notification.content}
-                        </p>
-                        <span style={{ fontSize: '12px', color: '#9ca3af', whiteSpace: 'nowrap', marginLeft: '8px', flexShrink: 0 }}>
-                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true }).replace('about ', '')}
-                        </span>
+                <div style={{ flex: 1, minWidth: 0, paddingRight: '20px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                            <p style={{
+                                fontSize: '14px', color: '#111827', margin: 0,
+                                fontWeight: !notification.is_read ? 600 : 500
+                            }}>
+                                {notification.title || notification.content}
+                            </p>
+                            <span style={{ fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                                {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true }).replace('about ', '')}
+                            </span>
+                        </div>
                     </div>
 
                     {notification.message && (
-                        <p style={{ fontSize: '14px', color: '#4b5563', marginTop: '2px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px', lineHeight: '1.4' }}>
                             {notification.message}
                         </p>
                     )}
@@ -147,8 +149,9 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                         <div style={{
                             marginTop: '8px', fontSize: '12px', padding: '4px 8px', borderRadius: '4px', width: 'fit-content',
                             display: 'flex', alignItems: 'center', gap: '6px',
-                            backgroundColor: notification.status === 'accepted' ? '#dcfce7' : '#fee2e2',
-                            color: notification.status === 'accepted' ? '#15803d' : '#b91c1c'
+                            backgroundColor: notification.status === 'accepted' ? '#effbf5' : '#fef2f2',
+                            color: notification.status === 'accepted' ? '#0d7f52' : '#b91c1c',
+                            border: `1px solid ${notification.status === 'accepted' ? '#bbf7d0' : '#fecaca'}`
                         }}>
                             {notification.status === 'accepted' ? <Check size={10} /> : <X size={10} />}
                             {notification.status === 'accepted' ? 'Accepted' : 'Declined'}
@@ -158,7 +161,7 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
 
                 {/* Unread Indicator */}
                 {!notification.is_read && (
-                    <div style={{ position: 'absolute', top: '16px', right: '16px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6' }} />
+                    <div style={{ position: 'absolute', top: '16px', right: '10px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
                 )}
 
                 {/* Group Hover Dismiss Button */}
@@ -169,8 +172,9 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                     }}
                     className="dismiss-btn"
                     style={{
-                        position: 'absolute', top: '8px', right: '8px', padding: '6px', border: 'none', background: 'transparent',
-                        color: '#9ca3af', borderRadius: '6px', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s'
+                        position: 'absolute', top: '4px', right: '4px', padding: '4px', border: 'none', background: 'transparent',
+                        color: '#9ca3af', borderRadius: '6px', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}
                     title="Dismiss"
                     onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fef2f2'; }}

@@ -175,34 +175,24 @@ export const createWorkspaceSlice: StateCreator<
     },
 
     inviteToWorkspace: async (workspaceId, email, role) => {
-        // Mock implementation or move from main store if it exists
-        // In original file, inviteToWorkspace logic was not fully visible in first chunks, 
-        // assuming standard RPC or insert logic.
-        // Based on useBoardStore.ts definitions, it exists.
-
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
-            // Check if user exists (search or just invite)
-            // Ideally call RPC 'invite_user_to_workspace' or similar
-            // For now implementing direct insert if user exists in profiles, or stub
-
-            // NOTE: The original file had a placeholder for this or used inviteAndAssignUser?
-            // Let's implement basic invite logic compatible with what we know
-
-            // Implementation depends on how we handle invites (likely by email lookup)
-            const { data: foundUser } = await supabase.from('profiles').select('id').eq('email', email).single();
+            const { data: foundUser } = await supabase.from('profiles').select('id, full_name').eq('email', email).single();
 
             if (foundUser) {
-                await supabase.from('workspace_members').insert({
-                    workspace_id: workspaceId,
-                    user_id: foundUser.id,
-                    role
-                });
+                // Send Invite Notification ONLY
+                await get().createNotification(
+                    foundUser.id,
+                    'workspace_invite',
+                    `You have been invited to join workspace`,
+                    workspaceId,
+                    { role, workspaceName: 'Workspace' }
+                );
             } else {
-                // Send email invite (backend) or error
-                console.warn("User not found for direct add");
+                console.warn("User not found for invite");
+                // TODO: Handle email invite for non-existing users if needed
             }
 
         } catch (e) {

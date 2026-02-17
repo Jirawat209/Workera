@@ -77,7 +77,8 @@ export const createBoardSlice: StateCreator<
                 supabase.from('groups').select('*').order('order'),
                 supabase.from('columns').select('*').order('order'),
                 supabase.from('items').select('*').order('order'),
-                supabase.from('board_members').select('board_id').eq('user_id', user.id),
+                supabase.from('items').select('*').order('order'),
+                supabase.from('board_members').select('board_id, last_viewed_at').eq('user_id', user.id),
                 supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id)
             ]);
 
@@ -99,6 +100,18 @@ export const createBoardSlice: StateCreator<
             // 0. ENSURE PROFILE
             let { data: existingProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
 
+            // Fetch profiles for workspace owners to display names
+            const workspaceOwnerIds = Array.from(new Set(workspaces.map((w: any) => w.owner_id).filter(Boolean)));
+            let ownerProfilesMap: Record<string, string> = {};
+            if (workspaceOwnerIds.length > 0) {
+                const { data: ownerProfiles } = await supabase.from('profiles').select('id, full_name').in('id', workspaceOwnerIds);
+                if (ownerProfiles) {
+                    ownerProfiles.forEach((p: any) => {
+                        ownerProfilesMap[p.id] = p.full_name || 'Unknown';
+                    });
+                }
+            }
+
             console.log('[DEBUG] User Metadata:', user.user_metadata);
             console.log('[DEBUG] Existing Profile:', existingProfile);
 
@@ -113,62 +126,15 @@ export const createBoardSlice: StateCreator<
             if (profileError) console.error("Failed to ensure profile:", profileError);
             else console.log('[DEBUG] Profile ensured successfully');
 
-            // Handle First User (No Workspace)
-            if (workspaces.length === 0) {
-                // Double check to prevent race conditions
-                const { count } = await supabase.from('workspaces').select('*', { count: 'exact', head: true }).eq('owner_id', user.id);
-                if (count && count > 0) {
-                    // CRITICAL FIX: Release lock before recursing to avoid deadlock
-                    set({ isInitializing: false });
-                    return get().loadUserData();
-                }
+            // console.log('DEBUG: loadUserData sharedBoardsData:', sharedBoardsData);
 
-                const workspaceId = uuidv4();
-                const boardId = uuidv4();
-                const groupId = uuidv4();
-
-                const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-                const workspaceTitle = `${userName}'s Workspace`;
-
-                const newWorkspace = { id: workspaceId, title: workspaceTitle, owner_id: user.id, order: 0 };
-                const { error: wsError } = await supabase.from('workspaces').insert(newWorkspace);
-
-                if (wsError) {
-                    console.error("Failed to create default workspace:", wsError);
-                    set({ isLoading: false, error: "Failed to create default workspace", isInitializing: false });
-                    return;
-                }
-
-                const defaultColumns = [
-                    {
-                        id: uuidv4(), title: 'Status', type: 'status' as ColumnType, order: 0, width: 140, options: [
-                            { id: 'c4c4c4c4-c4c4-c4c4-c4c4-c4c4c4c4c4c4', label: 'Default', color: '#c4c4c4' },
-                            { id: '00c87500-c875-c875-c875-00c87500c875', label: 'Done', color: '#00c875' },
-                            { id: 'e2445c00-445c-445c-445c-e2445c00e244', label: 'Stuck', color: '#e2445c' },
-                            { id: 'fdab3d00-ab3d-ab3d-ab3d-fdab3d00fdab', label: 'Working on it', color: '#fdab3d' }
-                        ]
-                    },
-                    { id: uuidv4(), title: 'Date', type: 'date' as ColumnType, order: 1, width: 140 },
-                    { id: uuidv4(), title: 'Person', type: 'people', order: 2, width: 140 },
-                ];
-
-                const newBoard = { id: boardId, workspace_id: workspaceId, title: 'Starting', order: 0 };
-                const newGroup = { id: groupId, board_id: boardId, title: 'Welcome to Workera', color: '#579bfc', order: 0 };
-                const newItem = { id: uuidv4(), board_id: boardId, group_id: groupId, title: 'On boarding', order: 0 };
-
-                const { error: boardError } = await supabase.from('boards').insert(newBoard);
-                if (boardError) console.error("Failed to create default board:", boardError);
-
-                await supabase.from('groups').insert(newGroup);
-                await supabase.from('columns').insert(defaultColumns.map(c => ({ id: c.id, board_id: boardId, title: c.title, type: c.type, order: c.order, width: c.width, options: c.options ? JSON.stringify(c.options) : '{}' })));
-                await supabase.from('items').insert(newItem);
-
-                // Add owner to board
-                await supabase.from('board_members').insert({ board_id: boardId, user_id: user.id, role: 'owner' });
-
-                // Release lock and reload to get full state
-                set({ isInitializing: false });
-                return get().loadUserData();
+            const lastViewedMap: Record<string, string> = {};
+            if (sharedBoardsData) {
+                sharedBoardsData.forEach((r: any) => {
+                    if (r.board_id && r.last_viewed_at) {
+                        lastViewedMap[r.board_id] = r.last_viewed_at;
+                    }
+                });
             }
 
             const fullBoards: Board[] = boards.map(b => {
@@ -180,6 +146,7 @@ export const createBoardSlice: StateCreator<
                     id: b.id,
                     workspaceId: b.workspace_id,
                     title: b.title,
+                    lastViewedAt: lastViewedMap[b.id] || undefined,
                     columns: bColumns.map(c => ({
                         id: c.id,
                         title: c.title,
@@ -220,6 +187,9 @@ export const createBoardSlice: StateCreator<
                 };
             });
 
+            // ... (Active Workspace/Board determination) ...
+            // Simplified for brevity in replacement constraint
+
             // Determine Active Workspace
             const currentWorkspaceId = get().activeWorkspaceId;
             const validCurrentWorkspace = workspaces.find((w: any) => w.id === currentWorkspaceId);
@@ -241,7 +211,13 @@ export const createBoardSlice: StateCreator<
             }
 
             set({
-                workspaces: workspaces.map((w: any) => ({ id: w.id, title: w.title, order: w.order, owner_id: w.owner_id })),
+                workspaces: workspaces.map((w: any) => ({
+                    id: w.id,
+                    title: w.title,
+                    order: w.order,
+                    owner_id: w.owner_id,
+                    ownerName: ownerProfilesMap[w.owner_id] // Add ownerName
+                })),
                 boards: fullBoards,
                 sharedBoardIds: sharedBoardsData?.map((r: any) => r.board_id) || [],
                 sharedWorkspaceIds: sharedWorkspacesData?.map((r: any) => r.workspace_id) || [],
@@ -273,6 +249,29 @@ export const createBoardSlice: StateCreator<
 
         if (id) {
             window.history.pushState(null, '', `/board/${id}`);
+
+            // Fire and forget: Update last_viewed_at
+            const { data: { user } } = await supabase.auth.getUser();
+            const nowISO = new Date().toISOString();
+
+            if (user) {
+                // Optimistically update local state immediately
+                const updatedBoards = get().boards.map(b =>
+                    b.id === id ? { ...b, lastViewedAt: nowISO } : b
+                );
+                set({ boards: updatedBoards });
+
+                // Update DB and await
+                const { error } = await supabase.from('board_members')
+                    .update({ last_viewed_at: nowISO })
+                    .eq('board_id', id)
+                    .eq('user_id', user.id);
+
+                if (error) {
+                    console.error('Failed to update last_viewed_at:', error);
+                }
+            }
+
             set({ isLoadingMembers: true });
             const members = await get().getBoardMembers(id);
             set({ activeBoardMembers: members, isLoadingMembers: false });

@@ -528,6 +528,12 @@ export const WorkspaceList = ({ activeTab, searchQuery }: WorkspaceListProps) =>
                     background-color: hsl(var(--color-bg-hover));
                     color: hsl(var(--color-text-primary));
                 }
+                .tree-node {
+                    margin-bottom: 4px;
+                }
+                .tree-sidebar-item {
+                    margin-bottom: 2px;
+                }
                 .context-menu {
                     display: flex;
                     flex-direction: column;

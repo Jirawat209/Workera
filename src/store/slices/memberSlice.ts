@@ -57,26 +57,22 @@ export const createMemberSlice: StateCreator<
     },
 
     inviteToBoard: async (boardId, email, role) => {
-        // Mock / RPC logic - Consistent with workspaceSlice setup
-        const { data: foundUser } = await supabase.from('profiles').select('id').eq('email', email).single();
+        const { data: foundUser } = await supabase.from('profiles').select('id, full_name').eq('email', email).single();
         if (foundUser) {
-            await supabase.from('board_members').insert({
-                board_id: boardId,
-                user_id: foundUser.id,
-                role
-            });
-            // Update local state if active
-            if (get().activeBoardId === boardId) {
-                const members = await get().getBoardMembers(boardId);
-                set({ activeBoardMembers: members });
-            }
+            // Send Invite Notification ONLY - Do not add member directly
+            await get().createNotification(
+                foundUser.id,
+                'board_invite',
+                `You have been invited to join board`,
+                boardId,
+                { role, boardName: 'Board' }
+            );
         }
     },
 
     updateMemberRole: async (memberId, newRole, type) => {
         const table = type === 'workspace' ? 'workspace_members' : 'board_members';
         await supabase.from(table).update({ role: newRole }).eq('id', memberId);
-        // refresh
         if (type === 'board' && get().activeBoardId) {
             set({ activeBoardMembers: await get().getBoardMembers(get().activeBoardId!) });
         }
@@ -97,7 +93,6 @@ export const createMemberSlice: StateCreator<
 
     inviteAndAssignUser: async (boardId, userId, role, itemId, columnId) => {
         await supabase.from('board_members').insert({ board_id: boardId, user_id: userId, role });
-        // Assign to item
         await get().updateItemValue(itemId, columnId, [userId]);
     },
 
@@ -116,8 +111,26 @@ export const createMemberSlice: StateCreator<
     },
 
     subscribeToRealtime: () => {
-        // ... (Realtime Logic stub - in full implementation this would be the detailed 100+ lines from original)
-        // For slice demonstration/validity, assuming stub until full copy.
+        const { realtimeSubscription } = get();
+        if (realtimeSubscription) return;
+
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (!user) return;
+
+            const channel = supabase.channel('member-realtime')
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${user.id}`
+                }, (payload) => {
+                    const newNotification = payload.new as Notification;
+                    set(state => ({ notifications: [newNotification, ...state.notifications] }));
+                })
+                .subscribe();
+
+            set({ realtimeSubscription: channel });
+        });
     },
     unsubscribeFromRealtime: () => {
         const sub = get().realtimeSubscription;
@@ -129,35 +142,105 @@ export const createMemberSlice: StateCreator<
     loadNotifications: async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data } = await supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20);
-        set({ notifications: (data as any[]) || [] });
+
+        const { data, error } = await supabase.from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (!error && data) {
+            // Client-side filter for accepted/declined to keep history clean if desired, 
+            // or just show them. Let's filter out 'accepted' and 'declined' from the main list 
+            // if we want them to disappear after action.
+            const activeNotifications = data.filter((n: any) => {
+                const status = n.data?.status;
+                return status !== 'accepted' && status !== 'declined';
+            });
+            set({ notifications: activeNotifications });
+        }
     },
     startNotificationSubscription: () => {
-        // init once
+        get().subscribeToRealtime();
     },
     markNotificationAsRead: async (id) => {
-        set(state => ({ notifications: state.notifications.map(n => n.id === id ? { ...n, read: true } : n) }));
-        await supabase.from('notifications').update({ read: true }).eq('id', id);
+        set(state => ({ notifications: state.notifications.map(n => n.id === id ? { ...n, is_read: true } : n) }));
+        await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     },
     markAllNotificationsAsRead: async () => {
-        set(state => ({ notifications: state.notifications.map(n => ({ ...n, read: true })) }));
+        set(state => ({ notifications: state.notifications.map(n => ({ ...n, is_read: true })) }));
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) await supabase.from('notifications').update({ read: true }).eq('user_id', user.id);
+        if (user) await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id);
     },
     dismissNotification: async (id) => {
         set(state => ({ notifications: state.notifications.filter(n => n.id !== id) }));
         await supabase.from('notifications').delete().eq('id', id);
     },
-    handleAcceptInvite: async () => { },
-    handleDeclineInvite: async () => { },
+
+    handleAcceptInvite: async (notification) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { type, entity_id, data } = notification;
+            const role = data?.role || 'member';
+
+            if (type === 'board_invite' && entity_id) {
+                const { count } = await supabase.from('board_members').select('*', { count: 'exact', head: true })
+                    .eq('board_id', entity_id).eq('user_id', user.id);
+
+                if (!count) {
+                    await supabase.from('board_members').insert({
+                        board_id: entity_id,
+                        user_id: user.id,
+                        role
+                    });
+                }
+            } else if (type === 'workspace_invite' && entity_id) {
+                const { count } = await supabase.from('workspace_members').select('*', { count: 'exact', head: true })
+                    .eq('workspace_id', entity_id).eq('user_id', user.id);
+
+                if (!count) {
+                    await supabase.from('workspace_members').insert({
+                        workspace_id: entity_id,
+                        user_id: user.id,
+                        role
+                    });
+                }
+            }
+
+            // Update status in JSON data
+            const newData = { ...data, status: 'accepted' };
+            await supabase.from('notifications').update({ data: newData, is_read: true }).eq('id', notification.id);
+
+            // Refresh
+            get().loadNotifications();
+            get().loadUserData(true);
+
+        } catch (e) {
+            console.error("Accept invite failed:", e);
+        }
+    },
+
+    handleDeclineInvite: async (notification) => {
+        try {
+            const newData = { ...notification.data, status: 'declined' };
+            await supabase.from('notifications').update({ data: newData, is_read: true }).eq('id', notification.id);
+            get().loadNotifications();
+        } catch (e) {
+            console.error("Decline invite failed:", e);
+        }
+    },
+
     createNotification: async (userId, type, content, entityId, extraData) => {
+        const notificationData = { ...extraData, status: 'pending' };
         await supabase.from('notifications').insert({
             user_id: userId,
             type,
             content,
             entity_id: entityId,
-            data: extraData,
-            read: false
+            data: notificationData,
+            is_read: false
         });
     }
 });

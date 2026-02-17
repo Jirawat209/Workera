@@ -1,9 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/postcss'
+import autoprefixer from 'autoprefixer'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss(),
+        autoprefixer(),
+      ],
+    },
+  },
   build: {
     // Increase chunk size warning limit (default is 500 KB)
     chunkSizeWarningLimit: 600,
@@ -21,3 +31,4 @@ export default defineConfig({
     },
   },
 })
+// Trigger Restart - Restoration attempt 8 (Dark Mode V4)

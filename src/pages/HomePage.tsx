@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 import { useAuth } from '../contexts/AuthContext';
-import { Clock, Layout, Star, Bell, X } from 'lucide-react';
+import { Clock, Layout, Star, Bell, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export const HomePage = () => {
     const { user } = useAuth();
     const { boards, workspaces, setActiveBoard } = useBoardStore();
 
-    // For now, simulate "Recently Visited" by just taking the first 3 boards
-    // In a real app, we would sort by last_viewed_at
-    const recentBoards = boards.slice(0, 3);
+    // Sort by lastViewedAt (descending) to show true recently visited
+    const recentBoards = [...boards].sort((a, b) => {
+        const dateA = a.lastViewedAt ? new Date(a.lastViewedAt).getTime() : 0;
+        const dateB = b.lastViewedAt ? new Date(b.lastViewedAt).getTime() : 0;
+        return dateB - dateA;
+    }).slice(0, 3);
 
     // Greeting based on time
     const hour = new Date().getHours();
@@ -46,6 +49,9 @@ export const HomePage = () => {
                     {recentBoards.length > 0 ? (
                         recentBoards.map(board => {
                             const workspace = workspaces.find(w => w.id === board.workspaceId);
+                            // Fallback owner name if not found (though loadUserData should have it)
+                            const ownerName = workspace?.ownerName || 'Unknown Owner';
+
                             return (
                                 <div
                                     key={board.id}
@@ -53,15 +59,15 @@ export const HomePage = () => {
                                     style={{
                                         backgroundColor: 'white',
                                         borderRadius: '8px',
-                                        padding: '20px',
+                                        padding: '24px',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
                                         border: '1px solid #e6e9ef',
                                         cursor: 'pointer',
                                         transition: 'transform 0.2s, box-shadow 0.2s',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        justifyContent: 'space-between',
-                                        height: '160px'
+                                        gap: '12px',
+                                        minHeight: '140px'
                                     }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -72,30 +78,31 @@ export const HomePage = () => {
                                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
                                     }}
                                 >
-                                    <div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                                            <div style={{
-                                                width: '40px',
-                                                height: '40px',
-                                                borderRadius: '6px',
-                                                backgroundColor: '#f5f7fa',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}>
-                                                <Layout size={20} color="#0073ea" />
-                                            </div>
-                                            <Star size={16} color="#d0d4e4" />
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            borderRadius: '6px',
+                                            backgroundColor: '#e5f4ff',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#0073ea'
+                                        }}>
+                                            <Layout size={22} />
                                         </div>
-                                        <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 4px 0', color: '#323338' }}>
+                                        <Star size={18} color="#d0d4e4" style={{ cursor: 'pointer' }} />
+                                    </div>
+
+                                    <div>
+                                        <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 6px 0', color: '#323338' }}>
                                             {board.title}
                                         </h3>
-                                        <p style={{ fontSize: '13px', color: '#676879', margin: 0 }}>
-                                            Work Management
-                                        </p>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#676879' }}>
-                                        <span>Workspace: {workspace?.title || 'Unknown Workspace'}</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: '#676879' }}>
+                                            <span>Work Management</span>
+                                            <span>Workspace: {workspace?.title || 'Unknown Workspace'}</span>
+                                            <span>Owner: {ownerName}</span>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -103,7 +110,7 @@ export const HomePage = () => {
                     )
                         : (
                             <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', backgroundColor: 'white', borderRadius: '8px', border: '1px dashed #d0d4e4' }}>
-                                <p style={{ color: '#676879' }}>No boards found. Create one to get started!</p>
+                                <p style={{ color: '#676879' }}>No boards found. Create or visit a board to get started!</p>
                             </div>
                         )}
                 </div>
@@ -217,7 +224,7 @@ const InboxFeed = () => {
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {feedNotifications.map(n => (
-                            <div key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '16px', position: 'relative' }}>
+                            <div key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '16px', position: 'relative', paddingRight: '24px' }}>
                                 <div style={{
                                     width: '40px', height: '40px', borderRadius: '50%',
                                     backgroundColor: '#e6e9ef', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -225,49 +232,53 @@ const InboxFeed = () => {
                                 }}>
                                     <Bell size={20} color="#676879" />
                                 </div>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', paddingRight: '20px' }}>
-                                        <span style={{ fontWeight: 600 }}>{n.title}</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', alignItems: 'baseline' }}>
+                                        <span style={{ fontWeight: 600, fontSize: '15px', color: '#323338' }}>{n.title || 'Notification'}</span>
+                                        <span style={{ fontSize: '12px', color: '#9ba0b0', marginLeft: '12px', whiteSpace: 'nowrap' }}>
+                                            {formatTime(n.created_at)}
+                                        </span>
                                     </div>
-                                    <p style={{ margin: 0, color: '#323338', fontSize: '14px' }}>
-                                        {n.message}
+                                    <p style={{ margin: 0, color: '#676879', fontSize: '14px', lineHeight: '1.5' }}>
+                                        {n.content || n.message}
                                     </p>
 
-                                    {n.status && n.status !== 'pending' && (
+                                    {(n.data?.status === 'accepted' || n.data?.status === 'declined' || n.status === 'accepted' || n.status === 'declined') && (
                                         <div style={{
-                                            padding: '12px',
+                                            padding: '10px 14px',
                                             borderRadius: '6px',
                                             fontSize: '13px',
                                             fontWeight: 500,
-                                            backgroundColor: n.status === 'accepted' ? '#d1fae5' : '#fee2e2',
-                                            color: n.status === 'accepted' ? '#065f46' : '#991b1b',
+                                            backgroundColor: (n.data?.status || n.status) === 'accepted' ? '#effbf5' : '#fef2f2',
+                                            color: (n.data?.status || n.status) === 'accepted' ? '#0d7f52' : '#d92d20',
                                             marginTop: '12px',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '8px'
+                                            gap: '8px',
+                                            border: `1px solid ${(n.data?.status || n.status) === 'accepted' ? '#bbf7d0' : '#fecaca'}`
                                         }}>
-                                            <span style={{ fontSize: '16px' }}>
-                                                {n.status === 'accepted' ? '✓' : '✕'}
+                                            <span style={{ fontSize: '14px' }}>
+                                                {(n.data?.status || n.status) === 'accepted' ? <Check size={14} /> : <X size={14} />}
                                             </span>
                                             <span>
-                                                {n.status === 'accepted'
-                                                    ? `You've accepted this invitation`
-                                                    : `You've declined this invitation`}
+                                                {(n.data?.status || n.status) === 'accepted'
+                                                    ? `Invitation accepted`
+                                                    : `Invitation declined`}
                                             </span>
                                         </div>
                                     )}
 
                                     {(n.type === 'workspace_invite' || n.type === 'board_invite') &&
-                                        (!n.status || n.status === 'pending') && (
-                                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                        ((n.data?.status || 'pending') === 'pending' && (!n.status || n.status === 'pending')) && (
+                                            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                                                 <button
                                                     onClick={() => onAccept(n)}
                                                     disabled={processingId === n.id}
                                                     style={{
-                                                        backgroundColor: processingId === n.id ? '#6ba3f5' : '#0073ea',
+                                                        backgroundColor: processingId === n.id ? '#89bbfd' : '#0073ea',
                                                         color: 'white',
                                                         border: 'none',
-                                                        padding: '6px 16px',
+                                                        padding: '8px 20px',
                                                         borderRadius: '4px',
                                                         cursor: processingId === n.id ? 'not-allowed' : 'pointer',
                                                         fontWeight: 500,
@@ -283,38 +294,40 @@ const InboxFeed = () => {
                                                     onClick={() => onDecline(n)}
                                                     disabled={processingId === n.id}
                                                     style={{
-                                                        backgroundColor: 'transparent',
-                                                        color: '#676879',
-                                                        border: '1px solid #c3c6d4',
-                                                        padding: '6px 16px',
+                                                        backgroundColor: 'white',
+                                                        color: '#323338',
+                                                        border: '1px solid #d0d4e4',
+                                                        padding: '8px 20px',
                                                         borderRadius: '4px',
                                                         cursor: processingId === n.id ? 'not-allowed' : 'pointer',
                                                         fontWeight: 500,
                                                         fontSize: '13px',
                                                         transition: 'all 0.2s'
-                                                    }}>
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6f8'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                                >
                                                     {processingId === n.id ? 'Declining...' : 'Decline'}
                                                 </button>
                                             </div>
                                         )}
-
-                                    <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-                                        <span style={{ fontSize: '12px', color: '#9ba0b0' }}>{formatTime(n.created_at)}</span>
-                                    </div>
                                 </div>
                                 <button
                                     onClick={() => handleMarkAsRead(n)}
                                     title="Dismiss"
                                     style={{
                                         position: 'absolute',
-                                        top: 0,
-                                        right: -10,
+                                        top: '0px',
+                                        right: '0px',
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
                                         padding: '4px',
                                         color: '#c3c6d4',
-                                        transition: 'color 0.2s'
+                                        transition: 'color 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
                                     }}
                                     onMouseEnter={(e) => e.currentTarget.style.color = '#323338'}
                                     onMouseLeave={(e) => e.currentTarget.style.color = '#c3c6d4'}

@@ -110,3 +110,36 @@
     font-family: inherit;
     outline: none;
 }
+
+/* HomePage Fixes due to Tailwind issues */
+.home-container {
+    padding: 40px;
+}
+
+@media (min-width: 768px) {
+    .home-container {
+        padding: 64px;
+    }
+}
+
+.board-card-content {
+    padding: 32px;
+}
+
+/* Fallback Spacing Utilities */
+.section-spacing {
+    margin-bottom: 48px;
+}
+
+.section-header-margin {
+    margin-bottom: 32px;
+}
+
+.feed-empty-state {
+    padding: 64px;
+    text-align: center;
+}
+
+.feed-content-padding {
+    padding: 32px;
+}

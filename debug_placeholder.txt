@@ -1,0 +1,21 @@
+
+import { createClient } from '@supabase/supabase-js';
+
+// Load env vars (simulated, relying on existing file or hardcoded for test if needed, but assuming user env is active)
+// For this script, I'll use the supabase client from the project if possible, but reading specific file to run via ts-node might be tricky with imports.
+// I will create a simple script that imports the Supabase client from the project source to test connectivity.
+
+// WAIT. I can't easily run a TS file that imports other TS files without setting up ts-node correctly with paths.
+// Instead, I will ask the user to open the console log.
+// But first, let me try to "fix" the issue I strongly suspect:
+// RLS on the 'notifications' table might be blocking 'SELECT' or 'INSERT'.
+// Since I cannot check RLS policies directly, I will assume they might be missing or too strict.
+
+// However, I just added console logs.
+// Let's create a "Self Test" button in the UI temporarily? No, user is testing manually.
+
+// I will create a small JS script to test Supabase connection independent of the app.
+// I'll grab the supabase URL and Key from a likely env file or just ask the user to check console.
+// Actually, I'll rely on the debug logs I just added.
+
+console.log("Debug logs added. Please check browser console.");

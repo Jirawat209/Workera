@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutGrid, Plus, Search, Users, Upload } from 'lucide-react';
+import { LayoutGrid, Plus, Search, Users } from 'lucide-react';
 import { useBoardStore } from '../../../store/useBoardStore';
 import { useUserStore } from '../../../store/useUserStore';
 

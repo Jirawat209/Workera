@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1-beta] - 2026-02-12
+
+### 🚀 New Features
+-   **Recently Visited Boards**:
+    -   Real-time tracking of visited boards.
+    -   Smart sorting (Newest first).
+    -   Enhanced Card UI with Owner and Workspace details.
+-   **Notification System**:
+    -   Improved "Invite" flow (Requires Acceptance).
+    -   Fixed sync issues between read status and DB.
+    -   Real-time updates for new notifications.
+
 ## [v1.0-beta] - 2026-02-10
 
 ### 🚀 Released
