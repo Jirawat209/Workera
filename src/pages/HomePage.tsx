@@ -25,20 +25,20 @@ export const HomePage = () => {
                 <h1 style={{
                     fontSize: '32px',
                     fontWeight: 600,
-                    color: '#323338',
+                    color: 'hsl(var(--color-text-primary))',
                     marginBottom: '8px'
                 }}>
                     {greeting}, {user?.user_metadata?.full_name || user?.email?.split('@')[0]}!
                 </h1>
-                <p style={{ color: '#676879', fontSize: '16px' }}>
+                <p style={{ color: 'hsl(var(--color-text-secondary))', fontSize: '16px' }}>
                     Quickly access your recent boards and work.
                 </p>
             </header>
 
             <section style={{ marginBottom: '40px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-                    <Clock size={20} color="#0073ea" />
-                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#323338', margin: 0 }}>Recently visited</h2>
+                    <Clock size={20} color="hsl(var(--color-brand-primary))" />
+                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'hsl(var(--color-text-primary))', margin: 0 }}>Recently visited</h2>
                 </div>
 
                 <div style={{
@@ -57,11 +57,11 @@ export const HomePage = () => {
                                     key={board.id}
                                     onClick={() => setActiveBoard(board.id)}
                                     style={{
-                                        backgroundColor: 'white',
+                                        backgroundColor: 'hsl(var(--color-bg-surface))',
                                         borderRadius: '8px',
                                         padding: '24px',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                                        border: '1px solid #e6e9ef',
+                                        boxShadow: 'var(--shadow-sm)',
+                                        border: '1px solid hsl(var(--color-border))',
                                         cursor: 'pointer',
                                         transition: 'transform 0.2s, box-shadow 0.2s',
                                         display: 'flex',
@@ -71,11 +71,11 @@ export const HomePage = () => {
                                     }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
+                                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
                                     }}
                                     onMouseLeave={(e) => {
                                         e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
                                     }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -83,22 +83,22 @@ export const HomePage = () => {
                                             width: '40px',
                                             height: '40px',
                                             borderRadius: '6px',
-                                            backgroundColor: '#e5f4ff',
+                                            backgroundColor: 'hsl(var(--color-brand-light))',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            color: '#0073ea'
+                                            color: 'hsl(var(--color-brand-primary))'
                                         }}>
                                             <Layout size={22} />
                                         </div>
-                                        <Star size={18} color="#d0d4e4" style={{ cursor: 'pointer' }} />
+                                        <Star size={18} color="hsl(var(--color-text-tertiary))" style={{ cursor: 'pointer' }} />
                                     </div>
 
                                     <div>
-                                        <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 6px 0', color: '#323338' }}>
+                                        <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 6px 0', color: 'hsl(var(--color-text-primary))' }}>
                                             {board.title}
                                         </h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: '#676879' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: 'hsl(var(--color-text-secondary))' }}>
                                             <span>Work Management</span>
                                             <span>Workspace: {workspace?.title || 'Unknown Workspace'}</span>
                                             <span>Owner: {ownerName}</span>
@@ -109,8 +109,8 @@ export const HomePage = () => {
                         })
                     )
                         : (
-                            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', backgroundColor: 'white', borderRadius: '8px', border: '1px dashed #d0d4e4' }}>
-                                <p style={{ color: '#676879' }}>No boards found. Create or visit a board to get started!</p>
+                            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', backgroundColor: 'hsl(var(--color-bg-surface))', borderRadius: '8px', border: '1px dashed hsl(var(--color-border))' }}>
+                                <p style={{ color: 'hsl(var(--color-text-secondary))' }}>No boards found. Create or visit a board to get started!</p>
                             </div>
                         )}
                 </div>
@@ -190,18 +190,18 @@ const InboxFeed = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{
-                        width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#0073ea', color: 'white',
+                        width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'hsl(var(--color-brand-primary))', color: 'white',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600
                     }}>
                         {feedNotifications.length}
                     </div>
-                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#323338', margin: 0 }}>Update feed (Inbox)</h2>
+                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'hsl(var(--color-text-primary))', margin: 0 }}>Update feed (Inbox)</h2>
                 </div>
                 {/* See All Button */}
                 <button
                     onClick={() => navigateTo('notifications')}
                     style={{
-                        background: 'transparent', border: 'none', color: '#0073ea', cursor: 'pointer', fontSize: '14px', fontWeight: 500
+                        background: 'transparent', border: 'none', color: 'hsl(var(--color-brand-primary))', cursor: 'pointer', fontSize: '14px', fontWeight: 500
                     }}
                 >
                     See all
@@ -209,37 +209,37 @@ const InboxFeed = () => {
             </div>
 
             <div style={{
-                backgroundColor: 'white',
+                backgroundColor: 'hsl(var(--color-bg-surface))',
                 borderRadius: '8px',
-                border: '1px solid #e6e9ef',
+                border: '1px solid hsl(var(--color-border))',
                 padding: '24px',
                 minHeight: '100px'
             }}>
                 {isLoading && feedNotifications.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#676879' }}>Loading updates...</div>
+                    <div style={{ textAlign: 'center', color: 'hsl(var(--color-text-secondary))' }}>Loading updates...</div>
                 ) : feedNotifications.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#676879', padding: '20px' }}>
+                    <div style={{ textAlign: 'center', color: 'hsl(var(--color-text-secondary))', padding: '20px' }}>
                         No feedback coming
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {feedNotifications.map(n => (
-                            <div key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '16px', position: 'relative', paddingRight: '24px' }}>
+                            <div key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid hsl(var(--color-border))', paddingBottom: '16px', position: 'relative', paddingRight: '24px' }}>
                                 <div style={{
                                     width: '40px', height: '40px', borderRadius: '50%',
-                                    backgroundColor: '#e6e9ef', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    backgroundColor: 'hsl(var(--color-bg-subtle))', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     flexShrink: 0
                                 }}>
-                                    <Bell size={20} color="#676879" />
+                                    <Bell size={20} color="hsl(var(--color-text-secondary))" />
                                 </div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', alignItems: 'baseline' }}>
-                                        <span style={{ fontWeight: 600, fontSize: '15px', color: '#323338' }}>{n.title || 'Notification'}</span>
-                                        <span style={{ fontSize: '12px', color: '#9ba0b0', marginLeft: '12px', whiteSpace: 'nowrap' }}>
+                                        <span style={{ fontWeight: 600, fontSize: '15px', color: 'hsl(var(--color-text-primary))' }}>{n.title || 'Notification'}</span>
+                                        <span style={{ fontSize: '12px', color: 'hsl(var(--color-text-tertiary))', marginLeft: '12px', whiteSpace: 'nowrap' }}>
                                             {formatTime(n.created_at)}
                                         </span>
                                     </div>
-                                    <p style={{ margin: 0, color: '#676879', fontSize: '14px', lineHeight: '1.5' }}>
+                                    <p style={{ margin: 0, color: 'hsl(var(--color-text-secondary))', fontSize: '14px', lineHeight: '1.5' }}>
                                         {n.content || n.message}
                                     </p>
 
@@ -275,7 +275,7 @@ const InboxFeed = () => {
                                                     onClick={() => onAccept(n)}
                                                     disabled={processingId === n.id}
                                                     style={{
-                                                        backgroundColor: processingId === n.id ? '#89bbfd' : '#0073ea',
+                                                        backgroundColor: processingId === n.id ? 'hsl(var(--color-brand-primary), 0.7)' : 'hsl(var(--color-brand-primary))',
                                                         color: 'white',
                                                         border: 'none',
                                                         padding: '8px 20px',
@@ -294,9 +294,9 @@ const InboxFeed = () => {
                                                     onClick={() => onDecline(n)}
                                                     disabled={processingId === n.id}
                                                     style={{
-                                                        backgroundColor: 'white',
-                                                        color: '#323338',
-                                                        border: '1px solid #d0d4e4',
+                                                        backgroundColor: 'hsl(var(--color-bg-surface))',
+                                                        color: 'hsl(var(--color-text-primary))',
+                                                        border: '1px solid hsl(var(--color-border))',
                                                         padding: '8px 20px',
                                                         borderRadius: '4px',
                                                         cursor: processingId === n.id ? 'not-allowed' : 'pointer',
@@ -304,8 +304,8 @@ const InboxFeed = () => {
                                                         fontSize: '13px',
                                                         transition: 'all 0.2s'
                                                     }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6f8'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-surface-hover))'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-surface))'}
                                                 >
                                                     {processingId === n.id ? 'Declining...' : 'Decline'}
                                                 </button>
@@ -323,14 +323,14 @@ const InboxFeed = () => {
                                         border: 'none',
                                         cursor: 'pointer',
                                         padding: '4px',
-                                        color: '#c3c6d4',
+                                        color: 'hsl(var(--color-text-tertiary))',
                                         transition: 'color 0.2s',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center'
                                     }}
-                                    onMouseEnter={(e) => e.currentTarget.style.color = '#323338'}
-                                    onMouseLeave={(e) => e.currentTarget.style.color = '#c3c6d4'}
+                                    onMouseEnter={(e) => e.currentTarget.style.color = 'hsl(var(--color-text-primary))'}
+                                    onMouseLeave={(e) => e.currentTarget.style.color = 'hsl(var(--color-text-tertiary))'}
                                 >
                                     <X size={16} />
                                 </button>

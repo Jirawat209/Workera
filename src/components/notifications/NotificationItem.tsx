@@ -56,10 +56,10 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
     };
 
     const getIcon = () => {
-        if (isInvite) return <UserPlus size={16} color="#3b82f6" />;
-        if (isAssignment) return <FileText size={16} color="#22c55e" />;
-        if (isMention) return <MessageSquare size={16} color="#f97316" />;
-        return <Bell size={16} color="#6b7280" />;
+        if (isInvite) return <UserPlus size={16} color="hsl(var(--color-brand-primary))" />;
+        if (isAssignment) return <FileText size={16} color="hsl(var(--color-status-green-bg))" />;
+        if (isMention) return <MessageSquare size={16} color="#f97316" />; // Keeping orange for now as no var
+        return <Bell size={16} color="hsl(var(--color-text-secondary))" />;
     };
 
     return (
@@ -67,14 +67,14 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
             onClick={handleClick}
             style={{
                 padding: '16px',
-                borderBottom: '1px solid #f3f4f6',
+                borderBottom: '1px solid hsl(var(--color-border))',
                 cursor: 'pointer',
                 position: 'relative',
-                backgroundColor: !notification.is_read ? '#eff6ff' : 'transparent',
+                backgroundColor: !notification.is_read ? 'hsl(var(--color-brand-light))' : 'transparent',
                 transition: 'background-color 0.2s'
             }}
             onMouseEnter={(e) => {
-                if (notification.is_read) e.currentTarget.style.backgroundColor = '#f9fafb';
+                if (notification.is_read) e.currentTarget.style.backgroundColor = 'hsl(var(--color-bg-surface-hover))';
                 // Show dismiss button on hover (requires separate state or CSS approach, using opacity for now)
                 const dismissBtn = e.currentTarget.querySelector('.dismiss-btn') as HTMLElement;
                 if (dismissBtn) dismissBtn.style.opacity = '1';
@@ -89,8 +89,8 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                 {/* Icon/Avatar Placeholder */}
                 <div style={{
                     marginTop: '4px', flexShrink: 0, width: '32px', height: '32px', borderRadius: '50%',
-                    backgroundColor: 'white', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                    backgroundColor: 'hsl(var(--color-bg-surface))', border: '1px solid hsl(var(--color-border))', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: 'var(--shadow-sm)'
                 }}>
                     {getIcon()}
                 </div>
@@ -99,19 +99,19 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                             <p style={{
-                                fontSize: '14px', color: '#111827', margin: 0,
+                                fontSize: '14px', color: 'hsl(var(--color-text-primary))', margin: 0,
                                 fontWeight: !notification.is_read ? 600 : 500
                             }}>
                                 {notification.title || notification.content}
                             </p>
-                            <span style={{ fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                            <span style={{ fontSize: '11px', color: 'hsl(var(--color-text-tertiary))', whiteSpace: 'nowrap', marginLeft: '8px' }}>
                                 {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true }).replace('about ', '')}
                             </span>
                         </div>
                     </div>
 
                     {notification.message && (
-                        <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px', lineHeight: '1.4' }}>
+                        <p style={{ fontSize: '13px', color: 'hsl(var(--color-text-secondary))', marginTop: '4px', lineHeight: '1.4' }}>
                             {notification.message}
                         </p>
                     )}
@@ -123,7 +123,7 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                                 onClick={() => handleAction('accept')}
                                 disabled={isProcessing}
                                 style={{
-                                    flex: 1, padding: '6px 12px', backgroundColor: '#2563eb', color: 'white', border: 'none',
+                                    flex: 1, padding: '6px 12px', backgroundColor: 'hsl(var(--color-brand-primary))', color: 'white', border: 'none',
                                     borderRadius: '4px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                 }}
@@ -134,7 +134,7 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                                 onClick={() => handleAction('decline')}
                                 disabled={isProcessing}
                                 style={{
-                                    flex: 1, padding: '6px 12px', backgroundColor: 'white', color: '#374151', border: '1px solid #d1d5db',
+                                    flex: 1, padding: '6px 12px', backgroundColor: 'hsl(var(--color-bg-surface))', color: 'hsl(var(--color-text-primary))', border: '1px solid hsl(var(--color-border))',
                                     borderRadius: '4px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                 }}
@@ -149,9 +149,9 @@ export const NotificationItem = ({ notification, onClose }: NotificationItemProp
                         <div style={{
                             marginTop: '8px', fontSize: '12px', padding: '4px 8px', borderRadius: '4px', width: 'fit-content',
                             display: 'flex', alignItems: 'center', gap: '6px',
-                            backgroundColor: notification.status === 'accepted' ? '#effbf5' : '#fef2f2',
-                            color: notification.status === 'accepted' ? '#0d7f52' : '#b91c1c',
-                            border: `1px solid ${notification.status === 'accepted' ? '#bbf7d0' : '#fecaca'}`
+                            backgroundColor: notification.status === 'accepted' ? 'hsl(var(--color-status-green-bg) / 0.1)' : 'hsl(var(--color-status-red-bg) / 0.1)',
+                            color: notification.status === 'accepted' ? 'hsl(var(--color-status-green-bg))' : 'hsl(var(--color-status-red-bg))',
+                            border: `1px solid ${notification.status === 'accepted' ? 'hsl(var(--color-status-green-bg) / 0.3)' : 'hsl(var(--color-status-red-bg) / 0.3)'}`
                         }}>
                             {notification.status === 'accepted' ? <Check size={10} /> : <X size={10} />}
                             {notification.status === 'accepted' ? 'Accepted' : 'Declined'}

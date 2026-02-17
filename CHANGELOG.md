@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.1-beta] - 2026-02-17
+
+### 🌓 Dark Mode Fixes
+-   **Homepage**:
+    -   Fixed invisible text colors (Text is now theme-aware).
+    -   Fixed card backgrounds (Cards are now theme-aware).
+-   **Notification Center**:
+    -   Fixed white backgrounds on notification cards.
+    -   Fixed text readability and status badge transparency.
+
 ## [v1.1-beta] - 2026-02-12
 
 ### 🚀 New Features
